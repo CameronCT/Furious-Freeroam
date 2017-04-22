@@ -1,67 +1,111 @@
 #include <a_samp>
+#include <a_mysql>
 #include <zcmd>
 
+/* -- TABLE OF ID's --
+ 1-25       = Account Dialogs
+ 1001-2000  = Dunnos
+*/
+
 /* Server Information */
-#define     SERVER_NAME     "Furious Freeroam"
-#define     SERVER_IP       "127.0.0.1:7777"
-#define     SERVER_GAMEMODE "CameronCT"
-#define     SERVER_MAP      "CTCameron"
+#define    SERVER_NAME    "Furious Freeroam"
+#define    SERVER_IP      "127.0.0.1:7777"
+#define    SERVER_GAMEMODE "CameronCT"
+#define    SERVER_MAP     "CTCameron"
 
 /* Database Information */
-#define     MYSQL_HOST      "127.0.0.1"
-#define     MYSQL_USER      "root"
-#define     MYSQL_PASS      "root"
-#define     MYSQL_PORT      "3306"
+#define    MYSQL_HOST     "127.0.0.1"
+#define    MYSQL_USER     "root"
+#define    MYSQL_PASS     "root"
+#define    MYSQL_DB       "server"
+#define    MYSQL_PORT     "3306"
 
 /* Colors RGBA */
-#define 	COLOR_GREY 		0xAFAFAFAA
-#define 	COLOR_GREEN 	0x33AA33AA
-#define 	COLOR_RED 		0xAA3333AA
-#define 	COLOR_YELLOW 	0xFFFF00AA
-#define 	COLOR_WHITE 	0xFFFFFFAA
-#define 	COLOR_BLUE 		0x0000BBAA
+#define 	COLOR_GREY      0xAFAFAFAA
+#define 	COLOR_GREEN     0x33AA33AA
+#define 	COLOR_RED       0xAA3333AA
+#define 	COLOR_YELLOW    0xFFFF00AA
+#define 	COLOR_WHITE     0xFFFFFFAA
+#define 	COLOR_BLUE      0x0000BBAA
 #define 	COLOR_LIGHTBLUE 0x33CCFFAA
-#define 	COLOR_ORANGE 	0xFF9900AA
-#define 	COLOR_BLACK 	0x000000AA
-#define 	COLOR_BROWN 	0XA52A2AAA
-#define 	COLOR_GOLD 		0xB8860BAA
+#define 	COLOR_ORANGE    0xFF9900AA
+#define 	COLOR_BLACK     0x000000AA
+#define 	COLOR_BROWN     0XA52A2AAA
+#define 	COLOR_GOLD      0xB8860BAA
 
 /* Colors HEX */
 #define     HEX_RED       "{FF0000}"
 #define     HEX_WHITE     "{FFFFFF}"
 #define     HEX_YELLOW    "{FFFF00}"
 
-main()
-{
-	print("\n----------------------------------");
-	print("GameMode");
-	print("----------------------------------\n");
-}
+/* Account Dialogs */
+#define     DIALOG_LOGIN       1
+#define     DIALOG_REGISTER    2
+#define     DIALOG_SECURITY    3
 
-public OnGameModeInit()
-{
+/* Player Data */
+enum Player_Info {
+	bool:Logged,
+	bool:Registered,
+	Name[MAX_PLAYER_NAME],
+	Attempts,
+	LoginTimer
+};
+new Player[MAX_PLAYERS][Player_Info];
+
+/* Variables */
+new
+	zQuery[256],
+    zString[256];
+	
+/* Macros */
+#define isnull(%1) ((!(%1[0])) || (((%1[0]) == '\1') && (!(%1[1]))))
+
+/* Functions */
+forward checkAccountExists(playerid);
+forward OnConnectResponse(callback[]);
+
+main() { }
+public OnGameModeInit() {
+	/* Database -> Initiate */
+	mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_DB, MYSQL_PASS);
+	mysql_log(ALL);
+	
+	/* Database -> Setup Tables */
+	DatabaseStructure();
+	
 	SetGameModeText(SERVER_NAME);
 	AddPlayerClass(0, 1958.3783, 1343.1572, 15.3746, 269.1425, 0, 0, 0, 0, 0, 0);
 	return 1;
 }
 
-public OnGameModeExit()
-{
+public OnGameModeExit() {
+	mysql_close();
 	return 1;
 }
 
-public OnPlayerRequestClass(playerid, classid)
-{
-	SendClientMessage(playerid, -1, " "HEX_RED" Welcome to our "HEX_YELLOW"server!");
-	
+public OnPlayerRequestClass(playerid, classid) {
+	new
+		szName[24];
+		
+	/* Scenery */
 	SetPlayerPos(playerid, 1958.3783, 1343.1572, 15.3746);
 	SetPlayerCameraPos(playerid, 1958.3783, 1343.1572, 15.3746);
 	SetPlayerCameraLookAt(playerid, 1958.3783, 1343.1572, 15.3746);
+	
+	/* Greetings */
+	SendClientMessage(playerid, -1, " "HEX_RED" Welcome to our "HEX_YELLOW"server!");
+	
+	/* Queue Login */
+ 	szName = getPlayerName(playerid);
+ 	format(zQuery, sizeof(zQuery), "SELECT a_id FROM accounts WHERE a_name = '%s'", SQLSafe(szName) );
+ 	mysql_tquery(zQuery, "OnConnectResponse");
 	return 1;
 }
 
-public OnPlayerConnect(playerid)
-{
+public OnPlayerConnect(playerid) {
+	Player[playerid][Logged]   = false;
+	Player[playerid][Attempts] = 0;
 	return 1;
 }
 
@@ -227,5 +271,29 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 {
+	return 1;
+}
+
+stock SQLSafe(str[256]) {
+	new
+		zEscape[sizeof(str)];
+
+	mysql_escape_string(str, zEscape, sizeof(zEscape));
+	return zEscape;
+}
+
+stock getPlayerName(playerid) {
+	new
+	   szName[MAX_PLAYER_NAME];
+
+	GetPlayerName(playerid, szName, MAX_PLAYER_NAME);
+	return szName;
+}
+
+stock DatabaseStructure() {
+	return 1;
+}
+
+public OnConnectResponse(callback[]) {
 	return 1;
 }
