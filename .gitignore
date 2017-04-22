@@ -1,7 +1,15 @@
 
 
 *.amx
-/pawno
+
+/pawno/libpawnc.dll
+/pawno/pawn.ico
+/pawno/pawnc.dll
+/pawno/pawncc.exe
+/pawno/pawno.exe
+/pawno/settings.ini
+/pawno/include/_disabled
+
 /scriptfiles
 /include
 /npcmodes
