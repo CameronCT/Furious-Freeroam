@@ -1,0 +1,13 @@
+
+
+*.amx
+/pawno
+/scriptfiles
+/include
+/npcmodes
+
+announce.exe
+samp-license.txt
+samp-npc.exe
+samp-server.exe
+server-readme.txt
