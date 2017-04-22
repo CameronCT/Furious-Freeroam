@@ -1,6 +1,36 @@
 #include <a_samp>
 #include <zcmd>
 
+/* Server Information */
+#define     SERVER_NAME     "Furious Freeroam"
+#define     SERVER_IP       "127.0.0.1:7777"
+#define     SERVER_GAMEMODE "CameronCT"
+#define     SERVER_MAP      "CTCameron"
+
+/* Database Information */
+#define     MYSQL_HOST      "127.0.0.1"
+#define     MYSQL_USER      "root"
+#define     MYSQL_PASS      "root"
+#define     MYSQL_PORT      "3306"
+
+/* Colors RGBA */
+#define 	COLOR_GREY 		0xAFAFAFAA
+#define 	COLOR_GREEN 	0x33AA33AA
+#define 	COLOR_RED 		0xAA3333AA
+#define 	COLOR_YELLOW 	0xFFFF00AA
+#define 	COLOR_WHITE 	0xFFFFFFAA
+#define 	COLOR_BLUE 		0x0000BBAA
+#define 	COLOR_LIGHTBLUE 0x33CCFFAA
+#define 	COLOR_ORANGE 	0xFF9900AA
+#define 	COLOR_BLACK 	0x000000AA
+#define 	COLOR_BROWN 	0XA52A2AAA
+#define 	COLOR_GOLD 		0xB8860BAA
+
+/* Colors HEX */
+#define     HEX_RED       "{FF0000}"
+#define     HEX_WHITE     "{FFFFFF}"
+#define     HEX_YELLOW    "{FFFF00}"
+
 main()
 {
 	print("\n----------------------------------");
@@ -10,7 +40,7 @@ main()
 
 public OnGameModeInit()
 {
-	SetGameModeText("Furious Freeroam");
+	SetGameModeText(SERVER_NAME);
 	AddPlayerClass(0, 1958.3783, 1343.1572, 15.3746, 269.1425, 0, 0, 0, 0, 0, 0);
 	return 1;
 }
@@ -22,6 +52,8 @@ public OnGameModeExit()
 
 public OnPlayerRequestClass(playerid, classid)
 {
+	SendClientMessage(playerid, -1, " "HEX_RED" Welcome to our "HEX_YELLOW"server!");
+	
 	SetPlayerPos(playerid, 1958.3783, 1343.1572, 15.3746);
 	SetPlayerCameraPos(playerid, 1958.3783, 1343.1572, 15.3746);
 	SetPlayerCameraLookAt(playerid, 1958.3783, 1343.1572, 15.3746);
