@@ -8,17 +8,22 @@
 */
 
 /* Server Information */
-#define    SERVER_NAME    "Furious Freeroam"
-#define    SERVER_IP      "127.0.0.1:7777"
-#define    SERVER_GAMEMODE "CameronCT"
-#define    SERVER_MAP     "CTCameron"
+#define    SERVER_NAME      "Furious Freeroam"
+#define    SERVER_IP        "127.0.0.1:7777"
+#define    SERVER_GAMEMODE  "CameronCT"
+#define    SERVER_MAP       "CTCameron"
+#define    SERVER_SALT      "1z2x3c4v5b"
+
+/* Spawn Information */
+#define    SPAWN_POS_X      1958.3783
+#define    SPAWN_POS_Y      1343.1572
+#define    SPAWN_POS_Z      15.3746
 
 /* Database Information */
 #define    MYSQL_HOST     "localhost"
 #define    MYSQL_USER     "root"
 #define    MYSQL_PASS     "password"
 #define    MYSQL_DB       "samp"
-#define    MYSQL_PORT     "3306"
 
 /* Colors RGBA */
 #define     COLOR_GREY      0xAFAFAFAA
@@ -46,7 +51,10 @@
 
 /* Player Data */
 enum E_PLAYER {
+	ID,
     Name[MAX_PLAYER_NAME],
+    Email[192],
+    Cache: Cache,
     bool:Logged,
     bool:Registered,
     Attempts,
@@ -57,6 +65,7 @@ new Player[MAX_PLAYERS][E_PLAYER];
 /* Variables */
 new
     MySQL:zSQL,
+	zSQLRace[MAX_PLAYERS],
     zQuery[256],
     zString[256];
 
@@ -65,7 +74,7 @@ new
 
 /* Functions */
 forward checkAccountExists(playerid);
-forward OnConnectResponse(playerid);
+forward OnConnectResponse(playerid, race);
 
 main() { }
 public OnGameModeInit() {
@@ -85,7 +94,7 @@ public OnGameModeInit() {
     }
 
     SetGameModeText(SERVER_NAME);
-    AddPlayerClass(0, 1958.3783, 1343.1572, 15.3746, 269.1425, 0, 0, 0, 0, 0, 0);
+    AddPlayerClass(0, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z, 269.1425, 0, 0, 0, 0, 0, 0);
     return 1;
 }
 
@@ -99,9 +108,9 @@ public OnPlayerRequestClass(playerid, classid) {
         szName[24];
 
     /* Scenery */
-    SetPlayerPos(playerid, 1958.3783, 1343.1572, 15.3746);
-    SetPlayerCameraPos(playerid, 1958.3783, 1343.1572, 15.3746);
-    SetPlayerCameraLookAt(playerid, 1958.3783, 1343.1572, 15.3746);
+    SetPlayerPos(playerid, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z);
+    SetPlayerCameraPos(playerid, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z);
+    SetPlayerCameraLookAt(playerid, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z);
 
     /* Greetings */
     SendClientMessage(playerid, -1, " "HEX_RED" Welcome to our "HEX_YELLOW"server!");
@@ -109,18 +118,23 @@ public OnPlayerRequestClass(playerid, classid) {
     /* Queue Login */
     szName = getPlayerName(playerid);
     mysql_format(zSQL, zQuery, sizeof(zQuery), "SELECT a_id FROM accounts WHERE a_name = '%e' LIMIT 1", szName);
-    mysql_tquery(zSQL, zQuery, "OnConnectResponse", "d", playerid);
+    mysql_tquery(zSQL, zQuery, "OnConnectResponse", "dd", playerid, zSQLRace[playerid]);
     return 1;
 }
 
 public OnPlayerConnect(playerid) {
+    zSQLRace[playerid]++;
+    
     Player[playerid][Logged]   = false;
     Player[playerid][Attempts] = 0;
     return 1;
 }
 
-public OnPlayerDisconnect(playerid, reason)
-{
+public OnPlayerDisconnect(playerid, reason) {
+    zSQLRace[playerid]++;
+    
+    if (cache_is_valid(Player[playerid][Cache]))
+		clearCache(playerid);
     return 1;
 }
 
@@ -274,6 +288,11 @@ public OnVehicleStreamOut(vehicleid, forplayerid)
     return 1;
 }
 
+public OnPlayerClickPlayer(playerid, clickedplayerid, source)
+{
+    return 1;
+}
+
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
     switch(dialogid) {
         case DIALOG_LOGIN: {
@@ -294,8 +313,15 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
     return 0;
 }
 
-public OnPlayerClickPlayer(playerid, clickedplayerid, source)
-{
+public OnConnectResponse(playerid, race) {
+	if (race != zSQLRace[playerid])
+	    return Kick(playerid);
+	
+    if (cache_num_rows() == 1) {
+        ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_INPUT, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
+    } else {
+        ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_INPUT, "Register", "It looks like you do not have an account, today is your lucky day to secure this name!", "Create", "Cancel");
+    }
     return 1;
 }
 
@@ -312,11 +338,7 @@ stock DatabaseStructure() {
     return 1;
 }
 
-public OnConnectResponse(playerid) {
-    if (cache_num_rows() == 1) {
-        ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_INPUT, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
-    } else {
-        ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_INPUT, "Register", "It looks like you do not have an account, today is your lucky day to secure this name!", "Create", "Cancel");
-    }
-    return 1;
+stock clearCache(playerid) {
+    cache_delete(Player[playerid][Cache]);
+    Player[playerid][Cache] = MYSQL_INVALID_CACHE;
 }
