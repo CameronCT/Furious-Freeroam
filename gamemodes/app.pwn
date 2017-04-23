@@ -55,6 +55,7 @@ new Player[MAX_PLAYERS][Player_Info];
 
 /* Variables */
 new
+	MySQL:zSQL,
 	zQuery[256],
     zString[256];
 	
@@ -63,16 +64,22 @@ new
 
 /* Functions */
 forward checkAccountExists(playerid);
-forward OnConnectResponse(callback[]);
+forward OnConnectResponse(playerid);
 
 main() { }
 public OnGameModeInit() {
-	/* Database -> Initiate */
-	mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_DB, MYSQL_PASS);
-	mysql_log(ALL);
+	/* Cuz fuck this error */
+	zString = "test";
 	
-	/* Database -> Setup Tables */
-	DatabaseStructure();
+	/* Database -> Initiate */
+	zSQL = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_DB, MYSQL_PASS);
+	if(mysql_errno() == 0) {
+	    /* Debugging On */
+		mysql_log(ALL);
+	
+	    /* Create Structure */
+		DatabaseStructure();
+	} else print("Unable to connect to database!");
 	
 	SetGameModeText(SERVER_NAME);
 	AddPlayerClass(0, 1958.3783, 1343.1572, 15.3746, 269.1425, 0, 0, 0, 0, 0, 0);
@@ -80,7 +87,7 @@ public OnGameModeInit() {
 }
 
 public OnGameModeExit() {
-	mysql_close();
+	mysql_close(zSQL);
 	return 1;
 }
 
@@ -98,8 +105,8 @@ public OnPlayerRequestClass(playerid, classid) {
 	
 	/* Queue Login */
  	szName = getPlayerName(playerid);
- 	format(zQuery, sizeof(zQuery), "SELECT a_id FROM accounts WHERE a_name = '%s'", SQLSafe(szName) );
- 	mysql_tquery(zQuery, "OnConnectResponse");
+ 	mysql_format(zSQL, zQuery, sizeof(zQuery), "SELECT a_id FROM accounts WHERE a_name = '%e'", szName);
+ 	mysql_tquery(zSQL, zQuery, "OnConnectResponse", "d", playerid);
 	return 1;
 }
 
@@ -274,14 +281,6 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 	return 1;
 }
 
-stock SQLSafe(str[256]) {
-	new
-		zEscape[sizeof(str)];
-
-	mysql_escape_string(str, zEscape, sizeof(zEscape));
-	return zEscape;
-}
-
 stock getPlayerName(playerid) {
 	new
 	   szName[MAX_PLAYER_NAME];
@@ -294,6 +293,6 @@ stock DatabaseStructure() {
 	return 1;
 }
 
-public OnConnectResponse(callback[]) {
+public OnConnectResponse(playerid) {
 	return 1;
 }
