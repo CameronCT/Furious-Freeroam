@@ -292,7 +292,7 @@ stock getPlayerName(playerid) {
 }
 
 stock DatabaseStructure() {
-	mysql_query_file(zSQL, "_SQL/database.sql");
+	mysql_query_file(zSQL, "database.sql");
 	return 1;
 }
 
