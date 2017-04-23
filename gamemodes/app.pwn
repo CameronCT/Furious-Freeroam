@@ -71,6 +71,7 @@ enum E_PLAYER {
     Name[MAX_PLAYER_NAME],
     Email[192],
     Password[PASSWORD_BUFFER],
+    Admin,
     Cache: Cache,
     bool:Logged,
     LoggedTimer,
@@ -135,7 +136,7 @@ public OnPlayerRequestClass(playerid, classid) {
 
     /* Queue Login */
     Player[playerid][Name] = getPlayerName(playerid);
-    mysql_format(zSQL, zQuery, sizeof(zQuery), "SELECT a_id, a_name, a_password, a_email, a_money, a_score, a_kills, a_deaths, a_datetime FROM accounts WHERE a_name = '%e' LIMIT 1", Player[playerid][Name]);
+    mysql_format(zSQL, zQuery, sizeof(zQuery), "SELECT a_id, a_name, a_password, a_email, a_admin, a_money, a_score, a_kills, a_deaths, a_datetime FROM accounts WHERE a_name = '%e' LIMIT 1", Player[playerid][Name]);
     mysql_tquery(zSQL, zQuery, "OnConnectResponse", "dd", playerid, zSQLRace[playerid]);
     return 1;
 }
@@ -162,8 +163,9 @@ public OnPlayerSpawn(playerid)
     return 1;
 }
 
-public OnPlayerDeath(playerid, killerid, reason)
-{
+public OnPlayerDeath(playerid, killerid, reason) {
+	Player[killerid][Kills]++;
+	Player[playerid][Deaths]++;
     return 1;
 }
 
@@ -387,7 +389,7 @@ CMD:help(playerid, params[]) {
 }
 
 CMD:stats(playerid, params[]) {
-   format(zString, sizeof(zString), "ID: %d - Name: %s - Kills: %d - Deaths: %d - Registered: %s", Player[playerid][ID], Player[playerid][Name], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Registered]);
+   format(zString, sizeof(zString), "ID: %d - Name: %s - Admin: %d - Kills: %d - Deaths: %d - Registered: %s", Player[playerid][ID], Player[playerid][Name], Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Registered]);
    SendInfoMessage(playerid, zString);
    return 1;
 }
@@ -428,10 +430,16 @@ clearCache(playerid) {
 
 // ------ Player Data
 FetchPlayerData(playerid) {
+	cache_set_active(Player[playerid][Cache]);
+	
+	/* Data */
     cache_get_value_int(0, "a_id", Player[playerid][ID]);
+    cache_get_value_int(0, "a_admin", Player[playerid][Admin]);
     cache_get_value_int(0, "a_kills", Player[playerid][Kills]);
     cache_get_value_int(0, "a_deaths", Player[playerid][Deaths]);
     cache_get_value_name(0, "a_datetime", Player[playerid][Registered]);
+    
+	cache_delete(Player[playerid][Cache]);
     return 1;
 }
 
