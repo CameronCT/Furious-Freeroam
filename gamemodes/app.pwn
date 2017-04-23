@@ -127,6 +127,11 @@ public OnGameModeInit() {
 }
 
 public OnGameModeExit() {
+	// ------ Save Data on GameMode Exit [https://github.com/pBlueG/SA-MP-MySQL/blob/master/example_scripts/login_system-cache.pwn]
+	for (new i = 0, j = GetPlayerPoolSize(); i <= j; i++)
+		if (IsPlayerConnected(i))
+			OnPlayerDisconnect(i, 1);
+
     mysql_close(zSQL);
     return 1;
 }
@@ -165,16 +170,16 @@ public OnPlayerConnect(playerid) {
 public OnPlayerDisconnect(playerid, reason) {
     zSQLRace[playerid]++;
 
+    SavePlayerData(playerid);
+    
+    if (cache_is_valid(Player[playerid][Cache]))
+        clearCache(playerid);
+        
     Player[playerid][Money] = 0;
 	Player[playerid][Score] = 0;
 	Player[playerid][Health] = 0.0;
 	Player[playerid][Armour] = 0.0;
-
-    SavePlayerData(playerid);
-    
     Player[playerid][Logged] = false;
-    if (cache_is_valid(Player[playerid][Cache]))
-        clearCache(playerid);
     return 1;
 }
 
