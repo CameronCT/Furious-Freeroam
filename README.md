@@ -10,6 +10,7 @@ Requirements
 Plugins
 ------
 + [BlueG's MySQL R41-2](https://github.com/pBlueG/SA-MP-MySQL/releases/tag/R41-2)
++ [Y_Less's Whirlpool](https://github.com/Southclaws/samp-whirlpool)
 
 
 Credits

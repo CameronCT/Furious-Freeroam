@@ -32,6 +32,8 @@
 #define    MYSQL_PASS     "password"
 #define    MYSQL_DB       "samp"
 
+/* Command Permissions */
+
 /* Colors RGBA */
 #define     COLOR_GREY      0xAFAFAFAA
 #define     COLOR_GREEN     0x33AA33AA
