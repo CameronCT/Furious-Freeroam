@@ -62,8 +62,12 @@ new
     MySQL:zSQL,
     PasswordBuffer[PASSWORD_BUFFER],
     zSQLRace[MAX_PLAYERS],
-    zQuery[256],
-    zString[256];
+    zQuery[128],
+    zQueryL[192],
+    //zQueryXL[256],
+    zString[128];
+    //zStringL[192],
+    //zStringXL[256]
 
 /* Player Data */
 enum E_PLAYER {
@@ -105,6 +109,7 @@ forward OnAnticheatCheck(playerid);
 main() { }
 public OnGameModeInit() {
     /* Database -> Initiate */
+    mysql_log(ALL);
     zSQL = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB);
     if(mysql_errno() == 0) {
         /* Create Structure */
@@ -137,8 +142,8 @@ public OnPlayerRequestClass(playerid, classid) {
 
     /* Queue Login */
     Player[playerid][Name] = getPlayerName(playerid);
-    mysql_format(zSQL, zQuery, sizeof(zQuery), "SELECT a_id, a_name, a_password, a_email, a_admin, a_money, a_score, a_kills, a_deaths, a_datetime FROM accounts WHERE a_name = '%e' LIMIT 1", Player[playerid][Name]);
-    mysql_tquery(zSQL, zQuery, "OnConnectResponse", "dd", playerid, zSQLRace[playerid]);
+    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "SELECT a_id, a_name, a_password, a_email, a_admin, a_money, a_score, a_kills, a_deaths, a_datetime FROM accounts WHERE a_name = '%e' LIMIT 1", Player[playerid][Name]);
+    mysql_tquery(zSQL, zQueryL, "OnConnectResponse", "dd", playerid, zSQLRace[playerid]);
     return 1;
 }
 
@@ -166,6 +171,7 @@ public OnPlayerDisconnect(playerid, reason) {
 	Player[playerid][Armour] = 0.0;
 
     SavePlayerData(playerid);
+    
     Player[playerid][Logged] = false;
     if (cache_is_valid(Player[playerid][Cache]))
         clearCache(playerid);
@@ -178,6 +184,9 @@ public OnPlayerSpawn(playerid) {
 }
 
 public OnPlayerDeath(playerid, killerid, reason) {
+    if (killerid == INVALID_PLAYER_ID) return 0;
+    if (Player[killerid][Logged] == false) return 0;
+    
 	Player[killerid][Kills]++;
 	Player[playerid][Deaths]++;
     return 1;
@@ -336,12 +345,14 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
                 
                 if (!strcmp(PasswordBuffer, Player[playerid][Password])) {
                     FetchPlayerData(playerid);
+                    
+                    Player[playerid][Logged] = true;
+                    
                     SetSpawnInfo(playerid, NO_TEAM, 0, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z, SPAWN_POS_A, 0, 0, 0, 0, 0, 0);
                     SpawnPlayer(playerid);
-
                 } else {
                     Player[playerid][LoggedAttempts]++;
-                    if (Player[playerid][LoggedAttempts] >= MAX_ATTEMPTS) {
+                    if (Player[playerid][LoggedAttempts] >= MAX_ATTEMPTS+1) {
                         format(zString, sizeof(zString), "Putting in the wrong password more than %d times.", MAX_ATTEMPTS);
                         KickPlayer(playerid, "Server", zString);
                     } else {
@@ -368,32 +379,6 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
     return 0;
 }
 
-public OnConnectResponse(playerid, race) {
-    if (race != zSQLRace[playerid])
-        return Kick(playerid);
-
-    if (cache_num_rows() == 1) {
-        cache_get_value_name(0, "a_name", Player[playerid][Name], MAX_PLAYER_NAME);
-        cache_get_value_name(0, "a_password", Player[playerid][Password], 129);
-        Player[playerid][Cache] = cache_save();
-    
-        ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
-    } else
-        ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_PASSWORD, "Register", "It looks like you do not have an account, today is your lucky day to secure this name!", "Create", "Cancel");
-    return 1;
-}
-
-public OnPlayerRegister(playerid) {
-    Player[playerid][ID]        = cache_insert_id();
-    Player[playerid][Logged]    = true;
-
-    SetSpawnInfo(playerid, NO_TEAM, 0, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z, SPAWN_POS_A, 0, 0, 0, 0, 0, 0);
-    SpawnPlayer(playerid);
-
-    ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
-    return 1;
-}
-
 // ------ Commands
 CMD:help(playerid, params[]) {
     SendGlobalMessage("I love turtles");
@@ -402,7 +387,7 @@ CMD:help(playerid, params[]) {
 }
 
 CMD:stats(playerid, params[]) {
-   format(zString, sizeof(zString), ""HEX_YELLOW"ID:"HEX_WHITE" %d\n"HEX_YELLOW"Name:"HEX_WHITE" %s\n"HEX_YELLOW"Admin:"HEX_WHITE" %d\n"HEX_YELLOW"Kills:"HEX_WHITE" %d\n"HEX_YELLOW"Deaths:"HEX_WHITE" %d\n"HEX_YELLOW"Registered:"HEX_WHITE" %s", Player[playerid][ID], Player[playerid][Name], Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Registered]);
+   format(zString, sizeof(zString), ""HEX_YELLOW"ID:"HEX_WHITE" %d\n"HEX_YELLOW"Name:"HEX_WHITE" %s\n"HEX_YELLOW"Admin:"HEX_WHITE" %d\n"HEX_YELLOW"Kills:"HEX_WHITE" %d\n"HEX_YELLOW"Deaths:"HEX_WHITE" %d\n"HEX_YELLOW"Registered:"HEX_WHITE" %s\n"HEX_YELLOW"Logged:"HEX_WHITE" %d\n", Player[playerid][ID], Player[playerid][Name], Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Registered], Player[playerid][Logged]);
    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" Statistics", zString, "Okay", "");
    return 1;
 }
@@ -434,6 +419,12 @@ CMD:anticheat(playerid, params[]) {
 
 CMD:kill(playerid, params[]) {
 	SetPlayerHealth(playerid, 0);
+	return 1;
+}
+
+CMD:savestats(playerid, params[]) {
+	SavePlayerData(playerid);
+	SendInfoMessage(playerid, "Your stats have successfully been saved!");
 	return 1;
 }
 
@@ -491,10 +482,36 @@ clearCache(playerid) {
     return 1;
 }
 
-// ------ Player Data
+// ------ Accounts
+public OnConnectResponse(playerid, race) {
+    if (race != zSQLRace[playerid])
+        return Kick(playerid);
+
+    if (cache_num_rows() == 1) {
+        cache_get_value_name(0, "a_name", Player[playerid][Name], MAX_PLAYER_NAME);
+        cache_get_value_name(0, "a_password", Player[playerid][Password], 129);
+        Player[playerid][Cache] = cache_save();
+
+        ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
+    } else
+        ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_PASSWORD, "Register", "It looks like you do not have an account, today is your lucky day to secure this name!", "Create", "Cancel");
+    return 1;
+}
+
+public OnPlayerRegister(playerid) {
+    Player[playerid][ID]        = cache_insert_id();
+    Player[playerid][Logged]    = true;
+
+    SetSpawnInfo(playerid, NO_TEAM, 0, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z, SPAWN_POS_A, 0, 0, 0, 0, 0, 0);
+    SpawnPlayer(playerid);
+
+    ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
+    return 1;
+}
+
 FetchPlayerData(playerid) {
 	cache_set_active(Player[playerid][Cache]);
-	
+
 	/* Data */
 	cache_get_value_name(0, "a_datetime", Player[playerid][Registered], 64);
     cache_get_value_int(0, "a_id", Player[playerid][ID]);
@@ -504,20 +521,21 @@ FetchPlayerData(playerid) {
     cache_get_value_int(0, "a_money", Player[playerid][Money]);
     cache_get_value_int(0, "a_score", Player[playerid][Score]);
     
-    zSetPlayerMoney(playerid, Player[playerid][Money]);
+	cache_delete(Player[playerid][Cache]);
+	Player[playerid][Cache] = MYSQL_INVALID_CACHE;
+	
+	zSetPlayerMoney(playerid, Player[playerid][Money]);
     zSetPlayerScore(playerid, Player[playerid][Score]);
     zSetPlayerHealth(playerid, Player[playerid][Health]);
     zSetPlayerArmour(playerid, Player[playerid][Armour]);
-    
-	cache_delete(Player[playerid][Cache]);
     return 1;
 }
 
 SavePlayerData(playerid) {
-    if (!Player[playerid][Logged]) return 0;
+    if (Player[playerid][Logged] == false) return 0;
     
-    mysql_format(zSQL, zQuery, sizeof(zQuery), "UPDATE accounts SET a_admin = %d, a_kills = %d, a_deaths = %d, a_money = %d, a_score = %d WHERE a_id = %d", Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Money], Player[playerid][Score], Player[playerid][ID]);
-    mysql_tquery(zSQL, zQuery);
+    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "UPDATE accounts SET a_admin = %d, a_kills = %d, a_deaths = %d, a_money = %d, a_score = %d WHERE a_id = %d", Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Money], Player[playerid][Score], Player[playerid][ID]);
+    mysql_tquery(zSQL, zQueryL);
     return 1;
 }
 
@@ -530,10 +548,7 @@ public OnAnticheatCheck(playerid) {
 
 	GetPlayerHealth(playerid, zHealth);
 	GetPlayerArmour(playerid, zArmour);
-	/*
-	GetPlayerMoney - 2500
-	Money - 2500
-	*/
+	
 	format(zString, sizeof(zString), "GetPlayerMoney: %i - Money: %i", GetPlayerMoney(playerid), Player[playerid][Money]);
 
     if (GetPlayerMoney(playerid) > Player[playerid][Money])
