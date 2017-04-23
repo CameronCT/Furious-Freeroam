@@ -80,7 +80,9 @@ enum E_PLAYER {
     Kills,
     Deaths,
 	Money,
-	Score
+	Score,
+	Float:Health,
+	Float:Armour
 };
 new Player[MAX_PLAYERS][E_PLAYER];
 
@@ -97,9 +99,8 @@ forward OnPlayerRegister(playerid);
 forward FetchPlayerData(playerid);
 forward UpdatePlayerData(playerid);
 
-/* Functions > Bcrypt */
-forward OnPasswordHashed(playerid);
-forward OnPasswordChecked(playerid);
+/* Anticheat */
+forward OnAnticheatCheck(playerid);
 
 main() { }
 public OnGameModeInit() {
@@ -144,13 +145,25 @@ public OnPlayerRequestClass(playerid, classid) {
 public OnPlayerConnect(playerid) {
     zSQLRace[playerid]++;
     
+	Player[playerid][Money] = 0;
+	Player[playerid][Score] = 0;
+	Player[playerid][Health] = 99.0;
+	Player[playerid][Armour] = 0.0;
+    
     Player[playerid][Logged]   = false;
     Player[playerid][LoggedAttempts] = 0;
+
+    SetTimerEx("OnAnticheatCheck", 1000, true, "d", playerid);
     return 1;
 }
 
 public OnPlayerDisconnect(playerid, reason) {
     zSQLRace[playerid]++;
+
+    Player[playerid][Money] = 0;
+	Player[playerid][Score] = 0;
+	Player[playerid][Health] = 0.0;
+	Player[playerid][Armour] = 0.0;
 
     SavePlayerData(playerid);
     Player[playerid][Logged] = false;
@@ -159,8 +172,8 @@ public OnPlayerDisconnect(playerid, reason) {
     return 1;
 }
 
-public OnPlayerSpawn(playerid)
-{
+public OnPlayerSpawn(playerid) {
+	zSetPlayerHealth(playerid, 99.0);
     return 1;
 }
 
@@ -286,10 +299,7 @@ public OnRconLoginAttempt(ip[], password[], success)
 }
 
 public OnPlayerUpdate(playerid) {
-	if (GetPlayerMoney(playerid) > Player[playerid][Money] || GetPlayerScore(playerid) > Player[playerid][Score]) {
-		BanPlayer(playerid, "Cheating");
-	}
-    return 1;
+	return 1;
 }
 
 public OnPlayerStreamIn(playerid, forplayerid)
@@ -333,13 +343,13 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
                     Player[playerid][LoggedAttempts]++;
                     if (Player[playerid][LoggedAttempts] >= MAX_ATTEMPTS) {
                         format(zString, sizeof(zString), "Putting in the wrong password more than %d times.", MAX_ATTEMPTS);
-                        KickPlayer(playerid, zString);
+                        KickPlayer(playerid, "Server", zString);
                     } else {
                         format(zString, sizeof(zString), "(%d/%d) The password you have entered is incorrect, please try again.", Player[playerid][LoggedAttempts], MAX_ATTEMPTS);
                         ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", zString, "Login", "Cancel");
                     }
                 }
-            } else KickPlayer(playerid, "Not putting in your password when prompted.");
+            } else KickPlayer(playerid, "Server", "Not putting in your password when prompted.");
             return 1;
         }
         case DIALOG_REGISTER: {
@@ -351,7 +361,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
 
                 mysql_format(zSQL, zQuery, sizeof(zQuery), "INSERT INTO accounts ( a_name, a_password ) VALUES ( '%e', '%e' )", Player[playerid][Name], PasswordBuffer);
                 mysql_tquery(zSQL, zQuery, "OnPlayerRegister", "d", playerid);
-            } else KickPlayer(playerid, "Not putting in your password when prompted.");
+            } else KickPlayer(playerid, "Server", "Not putting in your password when prompted.");
             return 1;
         }
     }
@@ -397,8 +407,53 @@ CMD:stats(playerid, params[]) {
    return 1;
 }
 
+CMD:anticheat(playerid, params[]) {
+	if (Player[playerid][Admin] <= 0) return SendErrorMessage(playerid, "You are not authorized to view this command");
+	
+	new
+	   Float:zHealth,
+	   Float:zArmour;
+
+	GetPlayerHealth(playerid, zHealth);
+	GetPlayerArmour(playerid, zArmour);
+	
+	format(zString, sizeof(zString),
+	    ""HEX_YELLOW"Money:"HEX_WHITE" $%d ($%d)\n"HEX_YELLOW"Score:"HEX_WHITE" %d (%d)\n"HEX_YELLOW"Health:"HEX_WHITE" %f (%f)\n"HEX_YELLOW"Armour:"HEX_WHITE" %f (%f)\n",
+		GetPlayerMoney(playerid),
+		Player[playerid][Money],
+		GetPlayerScore(playerid),
+		Player[playerid][Score],
+		zHealth,
+		Player[playerid][Health],
+		zArmour,
+		Player[playerid][Armour]
+	);
+	ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" Anticheat Debug", zString, "X", "");
+	return 1;
+}
+
 CMD:kill(playerid, params[]) {
 	SetPlayerHealth(playerid, 0);
+	return 1;
+}
+
+CMD:acmoney(playerid, params[]) {
+	GivePlayerMoney(playerid, 500);
+	return 1;
+}
+
+CMD:acmoneysafe(playerid, params[]) {
+	zGivePlayerMoney(playerid, 1000);
+	return 1;
+}
+
+CMD:achealth(playerid, params[]) {
+	SetPlayerHealth(playerid, 52.0);
+	return 1;
+}
+
+CMD:achealthsafe(playerid, params[]) {
+	zSetPlayerHealth(playerid, 50.0);
 	return 1;
 }
 
@@ -451,51 +506,86 @@ FetchPlayerData(playerid) {
     
     zSetPlayerMoney(playerid, Player[playerid][Money]);
     zSetPlayerScore(playerid, Player[playerid][Score]);
+    zSetPlayerHealth(playerid, Player[playerid][Health]);
+    zSetPlayerArmour(playerid, Player[playerid][Armour]);
     
 	cache_delete(Player[playerid][Cache]);
     return 1;
 }
 
 SavePlayerData(playerid) {
-    if (!IsPlayerConnected(playerid) || !Player[playerid][Logged]) return 0; // remove this
+    if (!Player[playerid][Logged]) return 0;
+    
+    mysql_format(zSQL, zQuery, sizeof(zQuery), "UPDATE accounts SET a_admin = %d, a_kills = %d, a_deaths = %d, a_money = %d, a_score = %d WHERE a_id = %d", Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Money], Player[playerid][Score], Player[playerid][ID]);
+    mysql_tquery(zSQL, zQuery);
     return 1;
 }
 
 // ------ Anticheat (http://forum.sa-mp.com/showthread.php?t=186988)
-stock zGivePlayerMoney(playerid, money) {
+public OnAnticheatCheck(playerid) {
+    // ------ Anticheat
+    new
+	   Float:zHealth,
+	   Float:zArmour;
+
+	GetPlayerHealth(playerid, zHealth);
+	GetPlayerArmour(playerid, zArmour);
+	/*
+	GetPlayerMoney - 2500
+	Money - 2500
+	*/
+	format(zString, sizeof(zString), "GetPlayerMoney: %i - Money: %i", GetPlayerMoney(playerid), Player[playerid][Money]);
+
+    if (GetPlayerMoney(playerid) > Player[playerid][Money])
+        BanPlayer(playerid, "Anticheat", "Money Cheating");
+        
+    if (GetPlayerScore(playerid) > Player[playerid][Score])
+        BanPlayer(playerid, "Anticheat", "Score Cheating");
+        
+    if (zHealth > Player[playerid][Health])
+        BanPlayer(playerid, "Anticheat", "Health Cheating");
+        
+    if (zArmour > Player[playerid][Armour])
+        BanPlayer(playerid, "Anticheat", "Armour Cheating");
+        
+    return 1;
+}
+
+zGivePlayerMoney(playerid, money) {
 	Player[playerid][Money] += money;
 	GivePlayerMoney(playerid, money);
-	return 1;
 }
 
-stock zSetPlayerMoney(playerid, money) {
+zSetPlayerMoney(playerid, money) {
 	Player[playerid][Money] = money;
 	GivePlayerMoney(playerid, money);
-	return 1;
 }
 
-stock zGivePlayerScore(playerid, score) {
-	Player[playerid][Score] += score;
-	SetPlayerScore(playerid, score);
-	return 1;
-}
-
-stock zSetPlayerScore(playerid, score) {
+zSetPlayerScore(playerid, score) {
 	Player[playerid][Score] = score;
 	SetPlayerScore(playerid, score);
-	return 1;
+}
+
+zSetPlayerHealth(playerid, Float:health) {
+	Player[playerid][Health] = health;
+	SetPlayerHealth(playerid, health);
+}
+
+zSetPlayerArmour(playerid, Float:armor) {
+	Player[playerid][Armour] = armor;
+	SetPlayerArmour(playerid, armor);
 }
 
 // ------ Kick / Ban
-BanPlayer(playerid, reason[]) {
-    format(zString, sizeof(zString), "Reason: %s", reason);
-    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" You have been banned!", zString, "Okay", "");
+BanPlayer(playerid, user[] = "Server", reason[]) {
+    format(zString, sizeof(zString), ""HEX_WHITE" You have been banned from the server for violating one or more of our rules.\n\n "HEX_YELLOW"User:"HEX_WHITE" %s\n"HEX_YELLOW"Reason:"HEX_WHITE" %s\n\nIf you feel that you have been wrongfully banned, please go to "SERVER_WEBSITE".", user, reason);
+    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, "You have been removed from the server!", zString, "X", "");
     SetTimerEx("_BanPlayer", 500, false, "ds", playerid, reason);
 }
 
-KickPlayer(playerid, reason[]) {
-    format(zString, sizeof(zString), "Reason: %s", reason);
-    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" You have been kicked!", zString, "Okay", "");
+KickPlayer(playerid, user[], reason[]) {
+    format(zString, sizeof(zString), ""HEX_WHITE" You have been kicked from the server for violating one or more of our rules.\n\n "HEX_YELLOW"User:"HEX_WHITE" %s\n"HEX_YELLOW"Reason:"HEX_WHITE" %s\n\nYou may come back to the server anytime, but please think over why you were kicked to prevent further risk of a ban.", user, reason);
+    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" You have been removed from the server!", zString, "X", "");
     SetTimerEx("_KickPlayer", 500, false, "d", playerid);
 }
 
