@@ -61,8 +61,6 @@
 new
     MySQL:zSQL,
     PasswordBuffer[PASSWORD_BUFFER],
-    zMoney[MAX_PLAYERS],
-    zScore[MAX_PLAYERS],
     zSQLRace[MAX_PLAYERS],
     zQuery[256],
     zString[256];
@@ -105,8 +103,6 @@ forward OnPasswordChecked(playerid);
 
 main() { }
 public OnGameModeInit() {
-    zString = "test"; // Just to stop the zString warning I get
-
     /* Database -> Initiate */
     zSQL = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB);
     if(mysql_errno() == 0) {
@@ -147,8 +143,6 @@ public OnPlayerRequestClass(playerid, classid) {
 
 public OnPlayerConnect(playerid) {
     zSQLRace[playerid]++;
-	zMoney[playerid] = 0;
-	zScore[playerid] = 0;
     
     Player[playerid][Logged]   = false;
     Player[playerid][LoggedAttempts] = 0;
@@ -162,9 +156,6 @@ public OnPlayerDisconnect(playerid, reason) {
     Player[playerid][Logged] = false;
     if (cache_is_valid(Player[playerid][Cache]))
         clearCache(playerid);
-        
-    zMoney[playerid] = 0;
-	zScore[playerid] = 0;
     return 1;
 }
 
@@ -295,7 +286,7 @@ public OnRconLoginAttempt(ip[], password[], success)
 }
 
 public OnPlayerUpdate(playerid) {
-	if (GetPlayerMoney(playerid) > zMoney[playerid] || GetPlayerScore(playerid) > zScore[playerid]) {
+	if (GetPlayerMoney(playerid) > Player[playerid][Money] || GetPlayerScore(playerid) > Player[playerid][Score]) {
 		BanPlayer(playerid, "Cheating");
 	}
     return 1;
@@ -459,7 +450,7 @@ FetchPlayerData(playerid) {
     cache_get_value_int(0, "a_score", Player[playerid][Score]);
     
     zSetPlayerMoney(playerid, Player[playerid][Money]);
-    SetPlayerScore(playerid, Player[playerid][Score]);
+    zSetPlayerScore(playerid, Player[playerid][Score]);
     
 	cache_delete(Player[playerid][Cache]);
     return 1;
@@ -472,25 +463,25 @@ SavePlayerData(playerid) {
 
 // ------ Anticheat (http://forum.sa-mp.com/showthread.php?t=186988)
 stock zGivePlayerMoney(playerid, money) {
-	zMoney[playerid] += money;
+	Player[playerid][Money] += money;
 	GivePlayerMoney(playerid, money);
 	return 1;
 }
 
 stock zSetPlayerMoney(playerid, money) {
-	zMoney[playerid] = money;
+	Player[playerid][Money] = money;
 	GivePlayerMoney(playerid, money);
 	return 1;
 }
 
 stock zGivePlayerScore(playerid, score) {
-	zScore[playerid] += score;
+	Player[playerid][Score] += score;
 	SetPlayerScore(playerid, score);
 	return 1;
 }
 
 stock zSetPlayerScore(playerid, score) {
-	zScore[playerid] = score;
+	Player[playerid][Score] = score;
 	SetPlayerScore(playerid, score);
 	return 1;
 }
