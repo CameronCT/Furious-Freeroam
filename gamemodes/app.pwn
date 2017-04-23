@@ -61,6 +61,8 @@
 new
     MySQL:zSQL,
     PasswordBuffer[PASSWORD_BUFFER],
+    zMoney[MAX_PLAYERS],
+    zScore[MAX_PLAYERS],
     zSQLRace[MAX_PLAYERS],
     zQuery[256],
     zString[256];
@@ -76,9 +78,11 @@ enum E_PLAYER {
     bool:Logged,
     LoggedTimer,
     LoggedAttempts,
-    Registered,
+    Registered[64],
     Kills,
-    Deaths
+    Deaths,
+	Money,
+	Score
 };
 new Player[MAX_PLAYERS][E_PLAYER];
 
@@ -143,6 +147,8 @@ public OnPlayerRequestClass(playerid, classid) {
 
 public OnPlayerConnect(playerid) {
     zSQLRace[playerid]++;
+	zMoney[playerid] = 0;
+	zScore[playerid] = 0;
     
     Player[playerid][Logged]   = false;
     Player[playerid][LoggedAttempts] = 0;
@@ -151,10 +157,14 @@ public OnPlayerConnect(playerid) {
 
 public OnPlayerDisconnect(playerid, reason) {
     zSQLRace[playerid]++;
+
     SavePlayerData(playerid);
     Player[playerid][Logged] = false;
     if (cache_is_valid(Player[playerid][Cache]))
         clearCache(playerid);
+        
+    zMoney[playerid] = 0;
+	zScore[playerid] = 0;
     return 1;
 }
 
@@ -284,8 +294,10 @@ public OnRconLoginAttempt(ip[], password[], success)
     return 1;
 }
 
-public OnPlayerUpdate(playerid)
-{
+public OnPlayerUpdate(playerid) {
+	if (GetPlayerMoney(playerid) > zMoney[playerid] || GetPlayerScore(playerid) > zScore[playerid]) {
+		BanPlayer(playerid, "Cheating");
+	}
     return 1;
 }
 
@@ -360,8 +372,8 @@ public OnConnectResponse(playerid, race) {
         return Kick(playerid);
 
     if (cache_num_rows() == 1) {
-        cache_get_value(0, "a_name", Player[playerid][Name], MAX_PLAYER_NAME);
-        cache_get_value(0, "a_password", Player[playerid][Password], 129);
+        cache_get_value_name(0, "a_name", Player[playerid][Name], MAX_PLAYER_NAME);
+        cache_get_value_name(0, "a_password", Player[playerid][Password], 129);
         Player[playerid][Cache] = cache_save();
     
         ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
@@ -389,9 +401,14 @@ CMD:help(playerid, params[]) {
 }
 
 CMD:stats(playerid, params[]) {
-   format(zString, sizeof(zString), "ID: %d - Name: %s - Admin: %d - Kills: %d - Deaths: %d - Registered: %s", Player[playerid][ID], Player[playerid][Name], Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Registered]);
-   SendInfoMessage(playerid, zString);
+   format(zString, sizeof(zString), ""HEX_YELLOW"ID:"HEX_WHITE" %d\n"HEX_YELLOW"Name:"HEX_WHITE" %s\n"HEX_YELLOW"Admin:"HEX_WHITE" %d\n"HEX_YELLOW"Kills:"HEX_WHITE" %d\n"HEX_YELLOW"Deaths:"HEX_WHITE" %d\n"HEX_YELLOW"Registered:"HEX_WHITE" %s", Player[playerid][ID], Player[playerid][Name], Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Registered]);
+   ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" Statistics", zString, "Okay", "");
    return 1;
+}
+
+CMD:kill(playerid, params[]) {
+	SetPlayerHealth(playerid, 0);
+	return 1;
 }
 
 // ------ Send Messages
@@ -433,19 +450,49 @@ FetchPlayerData(playerid) {
 	cache_set_active(Player[playerid][Cache]);
 	
 	/* Data */
+	cache_get_value_name(0, "a_datetime", Player[playerid][Registered], 64);
     cache_get_value_int(0, "a_id", Player[playerid][ID]);
     cache_get_value_int(0, "a_admin", Player[playerid][Admin]);
     cache_get_value_int(0, "a_kills", Player[playerid][Kills]);
     cache_get_value_int(0, "a_deaths", Player[playerid][Deaths]);
-    cache_get_value_name(0, "a_datetime", Player[playerid][Registered]);
+    cache_get_value_int(0, "a_money", Player[playerid][Money]);
+    cache_get_value_int(0, "a_score", Player[playerid][Score]);
+    
+    zSetPlayerMoney(playerid, Player[playerid][Money]);
+    SetPlayerScore(playerid, Player[playerid][Score]);
     
 	cache_delete(Player[playerid][Cache]);
     return 1;
 }
 
 SavePlayerData(playerid) {
-    if (!IsPlayerConnected(playerid) || !Player[playerid][Logged]) return 0;
+    if (!IsPlayerConnected(playerid) || !Player[playerid][Logged]) return 0; // remove this
     return 1;
+}
+
+// ------ Anticheat (http://forum.sa-mp.com/showthread.php?t=186988)
+stock zGivePlayerMoney(playerid, money) {
+	zMoney[playerid] += money;
+	GivePlayerMoney(playerid, money);
+	return 1;
+}
+
+stock zSetPlayerMoney(playerid, money) {
+	zMoney[playerid] = money;
+	GivePlayerMoney(playerid, money);
+	return 1;
+}
+
+stock zGivePlayerScore(playerid, score) {
+	zScore[playerid] += score;
+	SetPlayerScore(playerid, score);
+	return 1;
+}
+
+stock zSetPlayerScore(playerid, score) {
+	zScore[playerid] = score;
+	SetPlayerScore(playerid, score);
+	return 1;
 }
 
 // ------ Kick / Ban
