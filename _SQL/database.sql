@@ -8,16 +8,6 @@ SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL,ALLOW_INVALID_DATES';
 
 -- -----------------------------------------------------
--- Schema samp
--- -----------------------------------------------------
-
--- -----------------------------------------------------
--- Schema samp
--- -----------------------------------------------------
-CREATE SCHEMA IF NOT EXISTS `samp` DEFAULT CHARACTER SET utf8 ;
-USE `samp` ;
-
--- -----------------------------------------------------
 -- Table `samp`.`accounts`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `samp`.`accounts` (

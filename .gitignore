@@ -1,6 +1,7 @@
 
 
 *.amx
+*.bak
 
 /pawno/libpawnc.dll
 /pawno/pawn.ico
@@ -13,9 +14,9 @@
 /scriptfiles
 /include
 /npcmodes
+/logs
 
 announce.exe
 samp-npc.exe
 samp-server.exe
 server_log.txt
-*.bak

@@ -14,10 +14,10 @@
 #define    SERVER_MAP     "CTCameron"
 
 /* Database Information */
-#define    MYSQL_HOST     "127.0.0.1"
+#define    MYSQL_HOST     "localhost"
 #define    MYSQL_USER     "root"
-#define    MYSQL_PASS     "root"
-#define    MYSQL_DB       "server"
+#define    MYSQL_PASS     "password"
+#define    MYSQL_DB       "samp"
 #define    MYSQL_PORT     "3306"
 
 /* Colors RGBA */
@@ -72,14 +72,16 @@ public OnGameModeInit() {
 	zString = "test";
 	
 	/* Database -> Initiate */
-	zSQL = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_DB, MYSQL_PASS);
+	zSQL = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB);
 	if(mysql_errno() == 0) {
-	    /* Debugging On */
-		mysql_log(ALL);
-	
 	    /* Create Structure */
 		DatabaseStructure();
-	} else print("Unable to connect to database!");
+	} else {
+        print(" ");
+	    print("[MySQL] Error Connecting!");
+	    print("--------------------------------");
+        print("Host: "MYSQL_HOST" - User: "MYSQL_USER" - Pass: "MYSQL_PASS" - Database: "MYSQL_DB"");
+	}
 	
 	SetGameModeText(SERVER_NAME);
 	AddPlayerClass(0, 1958.3783, 1343.1572, 15.3746, 269.1425, 0, 0, 0, 0, 0, 0);
