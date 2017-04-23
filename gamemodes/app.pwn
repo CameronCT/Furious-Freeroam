@@ -85,10 +85,10 @@ enum E_PLAYER {
     Registered[64],
     Kills,
     Deaths,
-	Money,
-	Score,
-	Float:Health,
-	Float:Armour
+    Money,
+    Score,
+    Float:Health,
+    Float:Armour
 };
 new Player[MAX_PLAYERS][E_PLAYER];
 
@@ -129,10 +129,10 @@ public OnGameModeInit() {
 }
 
 public OnGameModeExit() {
-	// ------ Save Data on GameMode Exit [https://github.com/pBlueG/SA-MP-MySQL/blob/master/example_scripts/login_system-cache.pwn]
-	for (new i = 0, j = GetPlayerPoolSize(); i <= j; i++)
-		if (IsPlayerConnected(i))
-			OnPlayerDisconnect(i, 1);
+    // ------ Save Data on GameMode Exit [https://github.com/pBlueG/SA-MP-MySQL/blob/master/example_scripts/login_system-cache.pwn]
+    for (new i = 0, j = GetPlayerPoolSize(); i <= j; i++)
+        if (IsPlayerConnected(i))
+            OnPlayerDisconnect(i, 1);
 
     mysql_close(zSQL);
     return 1;
@@ -157,10 +157,10 @@ public OnPlayerRequestClass(playerid, classid) {
 public OnPlayerConnect(playerid) {
     zSQLRace[playerid]++;
     
-	Player[playerid][Money] = 0;
-	Player[playerid][Score] = 0;
-	Player[playerid][Health] = 99.0;
-	Player[playerid][Armour] = 0.0;
+    Player[playerid][Money] = 0;
+    Player[playerid][Score] = 0;
+    Player[playerid][Health] = 99.0;
+    Player[playerid][Armour] = 0.0;
     
     Player[playerid][Logged]   = false;
     Player[playerid][LoggedAttempts] = 0;
@@ -178,15 +178,15 @@ public OnPlayerDisconnect(playerid, reason) {
         clearCache(playerid);
         
     Player[playerid][Money] = 0;
-	Player[playerid][Score] = 0;
-	Player[playerid][Health] = 0.0;
-	Player[playerid][Armour] = 0.0;
+    Player[playerid][Score] = 0;
+    Player[playerid][Health] = 0.0;
+    Player[playerid][Armour] = 0.0;
     Player[playerid][Logged] = false;
     return 1;
 }
 
 public OnPlayerSpawn(playerid) {
-	zSetPlayerHealth(playerid, 99.0);
+    zSetPlayerHealth(playerid, 99.0);
     return 1;
 }
 
@@ -194,8 +194,8 @@ public OnPlayerDeath(playerid, killerid, reason) {
     if (killerid == INVALID_PLAYER_ID) return 0;
     if (Player[killerid][Logged] == false) return 0;
     
-	Player[killerid][Kills]++;
-	Player[playerid][Deaths]++;
+    Player[killerid][Kills]++;
+    Player[playerid][Deaths]++;
     return 1;
 }
 
@@ -315,7 +315,7 @@ public OnRconLoginAttempt(ip[], password[], success)
 }
 
 public OnPlayerUpdate(playerid) {
-	return 1;
+    return 1;
 }
 
 public OnPlayerStreamIn(playerid, forplayerid)
@@ -400,59 +400,59 @@ CMD:stats(playerid, params[]) {
 }
 
 CMD:anticheat(playerid, params[]) {
-	if (Player[playerid][Admin] <= 0) return SendErrorMessage(playerid, "You are not authorized to view this command");
-	
-	new
-	   Float:zHealth,
-	   Float:zArmour;
+    if (Player[playerid][Admin] <= 0) return SendErrorMessage(playerid, "You are not authorized to view this command");
 
-	GetPlayerHealth(playerid, zHealth);
-	GetPlayerArmour(playerid, zArmour);
-	
-	format(zString, sizeof(zString),
-	    ""HEX_YELLOW"Money:"HEX_WHITE" $%d ($%d)\n"HEX_YELLOW"Score:"HEX_WHITE" %d (%d)\n"HEX_YELLOW"Health:"HEX_WHITE" %f (%f)\n"HEX_YELLOW"Armour:"HEX_WHITE" %f (%f)\n",
-		GetPlayerMoney(playerid),
-		Player[playerid][Money],
-		GetPlayerScore(playerid),
-		Player[playerid][Score],
-		zHealth,
-		Player[playerid][Health],
-		zArmour,
-		Player[playerid][Armour]
-	);
-	ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" Anticheat Debug", zString, "X", "");
-	return 1;
+    new
+       Float:zHealth,
+       Float:zArmour;
+
+    GetPlayerHealth(playerid, zHealth);
+    GetPlayerArmour(playerid, zArmour);
+
+    format(zString, sizeof(zString),
+        ""HEX_YELLOW"Money:"HEX_WHITE" $%d ($%d)\n"HEX_YELLOW"Score:"HEX_WHITE" %d (%d)\n"HEX_YELLOW"Health:"HEX_WHITE" %f (%f)\n"HEX_YELLOW"Armour:"HEX_WHITE" %f (%f)\n",
+        GetPlayerMoney(playerid),
+        Player[playerid][Money],
+        GetPlayerScore(playerid),
+        Player[playerid][Score],
+        zHealth,
+        Player[playerid][Health],
+        zArmour,
+        Player[playerid][Armour]
+    );
+    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" Anticheat Debug", zString, "X", "");
+    return 1;
 }
 
 CMD:kill(playerid, params[]) {
-	SetPlayerHealth(playerid, 0);
-	return 1;
+    SetPlayerHealth(playerid, 0);
+    return 1;
 }
 
 CMD:savestats(playerid, params[]) {
-	SavePlayerData(playerid);
-	SendInfoMessage(playerid, "Your stats have successfully been saved!");
-	return 1;
+    SavePlayerData(playerid);
+    SendInfoMessage(playerid, "Your stats have successfully been saved!");
+    return 1;
 }
 
 CMD:acmoney(playerid, params[]) {
-	GivePlayerMoney(playerid, 500);
-	return 1;
+    GivePlayerMoney(playerid, 500);
+    return 1;
 }
 
 CMD:acmoneysafe(playerid, params[]) {
-	zGivePlayerMoney(playerid, 1000);
-	return 1;
+    zGivePlayerMoney(playerid, 1000);
+    return 1;
 }
 
 CMD:achealth(playerid, params[]) {
-	SetPlayerHealth(playerid, 52.0);
-	return 1;
+    SetPlayerHealth(playerid, 52.0);
+    return 1;
 }
 
 CMD:achealthsafe(playerid, params[]) {
-	zSetPlayerHealth(playerid, 50.0);
-	return 1;
+    zSetPlayerHealth(playerid, 50.0);
+    return 1;
 }
 
 // ------ Send Messages
@@ -517,10 +517,10 @@ public OnPlayerRegister(playerid) {
 }
 
 FetchPlayerData(playerid) {
-	cache_set_active(Player[playerid][Cache]);
+    cache_set_active(Player[playerid][Cache]);
 
-	/* Data */
-	cache_get_value_name(0, "a_datetime", Player[playerid][Registered], 64);
+    /* Data */
+    cache_get_value_name(0, "a_datetime", Player[playerid][Registered], 64);
     cache_get_value_int(0, "a_id", Player[playerid][ID]);
     cache_get_value_int(0, "a_admin", Player[playerid][Admin]);
     cache_get_value_int(0, "a_kills", Player[playerid][Kills]);
@@ -528,10 +528,10 @@ FetchPlayerData(playerid) {
     cache_get_value_int(0, "a_money", Player[playerid][Money]);
     cache_get_value_int(0, "a_score", Player[playerid][Score]);
     
-	cache_delete(Player[playerid][Cache]);
-	Player[playerid][Cache] = MYSQL_INVALID_CACHE;
-	
-	zSetPlayerMoney(playerid, Player[playerid][Money]);
+    cache_delete(Player[playerid][Cache]);
+    Player[playerid][Cache] = MYSQL_INVALID_CACHE;
+
+    zSetPlayerMoney(playerid, Player[playerid][Money]);
     zSetPlayerScore(playerid, Player[playerid][Score]);
     zSetPlayerHealth(playerid, Player[playerid][Health]);
     zSetPlayerArmour(playerid, Player[playerid][Armour]);
@@ -550,13 +550,13 @@ SavePlayerData(playerid) {
 public OnAnticheatCheck(playerid) {
     // ------ Anticheat
     new
-	   Float:zHealth,
-	   Float:zArmour;
+       Float:zHealth,
+       Float:zArmour;
 
-	GetPlayerHealth(playerid, zHealth);
-	GetPlayerArmour(playerid, zArmour);
-	
-	format(zString, sizeof(zString), "GetPlayerMoney: %i - Money: %i", GetPlayerMoney(playerid), Player[playerid][Money]);
+    GetPlayerHealth(playerid, zHealth);
+    GetPlayerArmour(playerid, zArmour);
+
+    format(zString, sizeof(zString), "GetPlayerMoney: %i - Money: %i", GetPlayerMoney(playerid), Player[playerid][Money]);
 
     if (GetPlayerMoney(playerid) > Player[playerid][Money])
         BanPlayer(playerid, "Anticheat", "Money Cheating");
@@ -574,28 +574,28 @@ public OnAnticheatCheck(playerid) {
 }
 
 zGivePlayerMoney(playerid, money) {
-	Player[playerid][Money] += money;
-	GivePlayerMoney(playerid, money);
+    Player[playerid][Money] += money;
+    GivePlayerMoney(playerid, money);
 }
 
 zSetPlayerMoney(playerid, money) {
-	Player[playerid][Money] = money;
-	GivePlayerMoney(playerid, money);
+    Player[playerid][Money] = money;
+    GivePlayerMoney(playerid, money);
 }
 
 zSetPlayerScore(playerid, score) {
-	Player[playerid][Score] = score;
-	SetPlayerScore(playerid, score);
+    Player[playerid][Score] = score;
+    SetPlayerScore(playerid, score);
 }
 
 zSetPlayerHealth(playerid, Float:health) {
-	Player[playerid][Health] = health;
-	SetPlayerHealth(playerid, health);
+    Player[playerid][Health] = health;
+    SetPlayerHealth(playerid, health);
 }
 
 zSetPlayerArmour(playerid, Float:armor) {
-	Player[playerid][Armour] = armor;
-	SetPlayerArmour(playerid, armor);
+    Player[playerid][Armour] = armor;
+    SetPlayerArmour(playerid, armor);
 }
 
 // ------ Kick / Ban
