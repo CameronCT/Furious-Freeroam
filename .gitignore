@@ -11,7 +11,9 @@
 /pawno/settings.ini
 /pawno/include/_disabled
 
-/scriptfiles
+/scriptfiles/properties
+/scriptfiles/vehicles
+
 /include
 /npcmodes
 /logs
