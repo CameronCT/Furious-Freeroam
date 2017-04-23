@@ -444,13 +444,13 @@ SavePlayerData(playerid) {
 BanPlayer(playerid, reason[]) {
     format(zString, sizeof(zString), "Reason: %s", reason);
     ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" You have been banned!", zString, "Okay", "");
-	SetTimerEx("_BanPlayer", 1000, false, "ds", playerid, reason);
+	SetTimerEx("_BanPlayer", 500, false, "ds", playerid, reason);
 }
 
 KickPlayer(playerid, reason[]) {
 	format(zString, sizeof(zString), "Reason: %s", reason);
 	ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" You have been kicked!", zString, "Okay", "");
-	SetTimerEx("_KickPlayer", 1000, false, "d", playerid);
+	SetTimerEx("_KickPlayer", 500, false, "d", playerid);
 }
 
 forward _BanPlayer(playerid, reason[]);
