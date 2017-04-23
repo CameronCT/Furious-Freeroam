@@ -61,13 +61,13 @@
 new
     MySQL:zSQL,
     PasswordBuffer[PASSWORD_BUFFER],
-	zSQLRace[MAX_PLAYERS],
+    zSQLRace[MAX_PLAYERS],
     zQuery[256],
     zString[256];
 
 /* Player Data */
 enum E_PLAYER {
-	ID,
+    ID,
     Name[MAX_PLAYER_NAME],
     Email[192],
     Password[PASSWORD_BUFFER],
@@ -151,9 +151,9 @@ public OnPlayerConnect(playerid) {
 public OnPlayerDisconnect(playerid, reason) {
     zSQLRace[playerid]++;
     SavePlayerData(playerid);
-	Player[playerid][Logged] = false;
-	if (cache_is_valid(Player[playerid][Cache]))
-	    clearCache(playerid);
+    Player[playerid][Logged] = false;
+    if (cache_is_valid(Player[playerid][Cache]))
+        clearCache(playerid);
     return 1;
 }
 
@@ -314,38 +314,38 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
     switch(dialogid) {
-		case DIALOG_INFO: return 1;
+        case DIALOG_INFO: return 1;
         case DIALOG_LOGIN: {
             if (response) {
                 WP_Hash(PasswordBuffer, sizeof(PasswordBuffer), inputtext);
                 
                 if (!strcmp(PasswordBuffer, Player[playerid][Password])) {
-	                FetchPlayerData(playerid);
-					SetSpawnInfo(playerid, NO_TEAM, 0, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z, SPAWN_POS_A, 0, 0, 0, 0, 0, 0);
-					SpawnPlayer(playerid);
-					
-				} else {
-					Player[playerid][LoggedAttempts]++;
-					if (Player[playerid][LoggedAttempts] >= MAX_ATTEMPTS) {
-						format(zString, sizeof(zString), "Putting in the wrong password more than %d times.", MAX_ATTEMPTS);
-						KickPlayer(playerid, zString);
-					} else {
-						format(zString, sizeof(zString), "(%d/%d) The password you have entered is incorrect, please try again.", Player[playerid][LoggedAttempts], MAX_ATTEMPTS);
-					    ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", zString, "Login", "Cancel");
-					}
-				}
+                    FetchPlayerData(playerid);
+                    SetSpawnInfo(playerid, NO_TEAM, 0, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z, SPAWN_POS_A, 0, 0, 0, 0, 0, 0);
+                    SpawnPlayer(playerid);
+
+                } else {
+                    Player[playerid][LoggedAttempts]++;
+                    if (Player[playerid][LoggedAttempts] >= MAX_ATTEMPTS) {
+                        format(zString, sizeof(zString), "Putting in the wrong password more than %d times.", MAX_ATTEMPTS);
+                        KickPlayer(playerid, zString);
+                    } else {
+                        format(zString, sizeof(zString), "(%d/%d) The password you have entered is incorrect, please try again.", Player[playerid][LoggedAttempts], MAX_ATTEMPTS);
+                        ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", zString, "Login", "Cancel");
+                    }
+                }
             } else KickPlayer(playerid, "Not putting in your password when prompted.");
             return 1;
         }
         case DIALOG_REGISTER: {
             if (response && !isnull(inputtext)) {
-				if (strlen(inputtext) <= 1)
-					return ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_PASSWORD, "Register", "Your password cannot be empty, please enter a password!", "Create", "Cancel");
+                if (strlen(inputtext) <= 1)
+                    return ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_PASSWORD, "Register", "Your password cannot be empty, please enter a password!", "Create", "Cancel");
 
                 WP_Hash(PasswordBuffer, sizeof(PasswordBuffer), inputtext);
-				
-				mysql_format(zSQL, zQuery, sizeof(zQuery), "INSERT INTO accounts ( a_name, a_password ) VALUES ( '%e', '%e' )", Player[playerid][Name], PasswordBuffer);
-				mysql_tquery(zSQL, zQuery, "OnPlayerRegister", "d", playerid);
+
+                mysql_format(zSQL, zQuery, sizeof(zQuery), "INSERT INTO accounts ( a_name, a_password ) VALUES ( '%e', '%e' )", Player[playerid][Name], PasswordBuffer);
+                mysql_tquery(zSQL, zQuery, "OnPlayerRegister", "d", playerid);
             } else KickPlayer(playerid, "Not putting in your password when prompted.");
             return 1;
         }
@@ -354,12 +354,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
 }
 
 public OnConnectResponse(playerid, race) {
-	if (race != zSQLRace[playerid])
-	    return Kick(playerid);
-	
+    if (race != zSQLRace[playerid])
+        return Kick(playerid);
+
     if (cache_num_rows() == 1) {
-		cache_get_value(0, "a_name", Player[playerid][Name], MAX_PLAYER_NAME);
-		cache_get_value(0, "a_password", Player[playerid][Password], 129);
+        cache_get_value(0, "a_name", Player[playerid][Name], MAX_PLAYER_NAME);
+        cache_get_value(0, "a_password", Player[playerid][Password], 129);
         Player[playerid][Cache] = cache_save();
     
         ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
@@ -369,21 +369,21 @@ public OnConnectResponse(playerid, race) {
 }
 
 public OnPlayerRegister(playerid) {
-	Player[playerid][ID]        = cache_insert_id();
-	Player[playerid][Logged]    = true;
+    Player[playerid][ID]        = cache_insert_id();
+    Player[playerid][Logged]    = true;
 
     SetSpawnInfo(playerid, NO_TEAM, 0, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z, SPAWN_POS_A, 0, 0, 0, 0, 0, 0);
-	SpawnPlayer(playerid);
-	
-	ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
-	return 1;
+    SpawnPlayer(playerid);
+
+    ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
+    return 1;
 }
 
 // ------ Commands
 CMD:help(playerid, params[]) {
-	SendGlobalMessage("I love turtles");
-	SendErrorMessage(playerid, "This is not done yet, sorry");
-	return 1;
+    SendGlobalMessage("I love turtles");
+    SendErrorMessage(playerid, "This is not done yet, sorry");
+    return 1;
 }
 
 CMD:stats(playerid, params[]) {
@@ -394,15 +394,15 @@ CMD:stats(playerid, params[]) {
 
 // ------ Send Messages
 stock SendErrorMessage(playerid, msg[]) {
-	return SendClientMessage(playerid, COLOR_RED, msg);
+    return SendClientMessage(playerid, COLOR_RED, msg);
 }
 
 stock SendInfoMessage(playerid, msg[]) {
-	return SendClientMessage(playerid, COLOR_BLUE, msg);
+    return SendClientMessage(playerid, COLOR_BLUE, msg);
 }
 
 stock SendGlobalMessage(msg[]) {
-	return SendClientMessageToAll(COLOR_ORANGE, msg);
+    return SendClientMessageToAll(COLOR_ORANGE, msg);
 }
 
 // ------ Player
@@ -428,38 +428,38 @@ clearCache(playerid) {
 
 // ------ Player Data
 FetchPlayerData(playerid) {
-	cache_get_value_int(0, "a_id", Player[playerid][ID]);
-	cache_get_value_int(0, "a_kills", Player[playerid][Kills]);
-	cache_get_value_int(0, "a_deaths", Player[playerid][Deaths]);
-	cache_get_value_name(0, "a_datetime", Player[playerid][Registered]);
-	return 1;
+    cache_get_value_int(0, "a_id", Player[playerid][ID]);
+    cache_get_value_int(0, "a_kills", Player[playerid][Kills]);
+    cache_get_value_int(0, "a_deaths", Player[playerid][Deaths]);
+    cache_get_value_name(0, "a_datetime", Player[playerid][Registered]);
+    return 1;
 }
 
 SavePlayerData(playerid) {
-	if (!IsPlayerConnected(playerid) || !Player[playerid][Logged]) return 0;
-	return 1;
+    if (!IsPlayerConnected(playerid) || !Player[playerid][Logged]) return 0;
+    return 1;
 }
 
 // ------ Kick / Ban
 BanPlayer(playerid, reason[]) {
     format(zString, sizeof(zString), "Reason: %s", reason);
     ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" You have been banned!", zString, "Okay", "");
-	SetTimerEx("_BanPlayer", 500, false, "ds", playerid, reason);
+    SetTimerEx("_BanPlayer", 500, false, "ds", playerid, reason);
 }
 
 KickPlayer(playerid, reason[]) {
-	format(zString, sizeof(zString), "Reason: %s", reason);
-	ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" You have been kicked!", zString, "Okay", "");
-	SetTimerEx("_KickPlayer", 500, false, "d", playerid);
+    format(zString, sizeof(zString), "Reason: %s", reason);
+    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" You have been kicked!", zString, "Okay", "");
+    SetTimerEx("_KickPlayer", 500, false, "d", playerid);
 }
 
 forward _BanPlayer(playerid, reason[]);
 public _BanPlayer(playerid, reason[]) {
-	BanEx(playerid, reason);
+    BanEx(playerid, reason);
 }
 
 forward _KickPlayer(playerid);
 public _KickPlayer(playerid) {
-	Kick(playerid);
+    Kick(playerid);
 }
 
