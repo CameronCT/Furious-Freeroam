@@ -12,7 +12,9 @@
 #define    SERVER_IP        "127.0.0.1:7777"
 #define    SERVER_GAMEMODE  "CameronCT"
 #define    SERVER_MAP       "CTCameron"
-#define    SERVER_SALT      "1z2x3c4v5b"
+
+/* BCRYPT Settings */
+#define    BCRYPT_COST      15
 
 /* Spawn Information */
 #define    SPAWN_POS_X      1958.3783
@@ -54,6 +56,7 @@ enum E_PLAYER {
 	ID,
     Name[MAX_PLAYER_NAME],
     Email[192],
+    Password[65],
     Cache: Cache,
     bool:Logged,
     bool:Registered,
@@ -72,9 +75,19 @@ new
 /* Macros */
 #define isnull(%1) ((!(%1[0])) || (((%1[0]) == '\1') && (!(%1[1]))))
 
+/* Whirlpool */
+native WP_Hash(buffer[], len, const str[]);
+
 /* Functions */
-forward checkAccountExists(playerid);
 forward OnConnectResponse(playerid, race);
+forward OnPlayerRegister(playerid);
+
+forward FetchPlayerData(playerid);
+forward UpdatePlayerData(playerid);
+
+/* Functions > Bcrypt */
+forward OnPasswordHashed(playerid);
+forward OnPasswordChecked(playerid);
 
 main() { }
 public OnGameModeInit() {
@@ -117,7 +130,7 @@ public OnPlayerRequestClass(playerid, classid) {
 
     /* Queue Login */
     szName = getPlayerName(playerid);
-    mysql_format(zSQL, zQuery, sizeof(zQuery), "SELECT a_id FROM accounts WHERE a_name = '%e' LIMIT 1", szName);
+    mysql_format(zSQL, zQuery, sizeof(zQuery), "SELECT a_id, a_name, a_password, a_email, a_money, a_score, a_kills, a_deaths FROM accounts WHERE a_name = '%e' LIMIT 1", szName);
     mysql_tquery(zSQL, zQuery, "OnConnectResponse", "dd", playerid, zSQLRace[playerid]);
     return 1;
 }
@@ -297,15 +310,32 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
     switch(dialogid) {
         case DIALOG_LOGIN: {
             if (response && !isnull(inputtext)) {
-                /* Query Stuff */
-                SendClientMessage(playerid, -1, "Yay your logged in sorta");
+                
+                new
+					PasswordHash[65];
+					
+                WP_Hash(PasswordHash, sizeof(PasswordHash), inputtext);
+				
+				
+                
             } else Kick(playerid);
             return 1;
         }
         case DIALOG_REGISTER: {
             if (response && !isnull(inputtext)) {
+				if (strlen(inputtext) <= 1)
+					return ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_PASSWORD, "Register", "Your password cannot be empty, please enter a password!", "Create", "Cancel");
+
+                new
+					PasswordHash[65];
+
+                WP_Hash(PasswordHash, sizeof(PasswordHash), inputtext);
+				
+				mysql_format(zSQL, zQuery, sizeof(zQuery), "INSERT INTO accounts ( a_username, a_password ) VALUES ( '%e', '%e' )", Player[playerid][Name], Player[playerid][Password]);
+				mysql_tquery(zSQL, zQuery, "OnPlayerRegister", "d", playerid);
+				
                 /* Query Stuff */
-                SendClientMessage(playerid, -1, "Yay your registered sorta");
+                SendClientMessage(playerid, -1, "You have successfully registered your account, please look");
             } else Kick(playerid);
             return 1;
         }
@@ -318,14 +348,38 @@ public OnConnectResponse(playerid, race) {
 	    return Kick(playerid);
 	
     if (cache_num_rows() == 1) {
-        ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_INPUT, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
-    } else {
-        ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_INPUT, "Register", "It looks like you do not have an account, today is your lucky day to secure this name!", "Create", "Cancel");
-    }
+		cache_get_value(0, "a_username", Player[playerid][Name], MAX_PLAYER_NAME);
+		cache_get_value(0, "a_password", Player[playerid][Password], 65);
+        Player[playerid][Cache] = cache_save();
+    
+        ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
+    } else
+        ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_PASSWORD, "Register", "It looks like you do not have an account, today is your lucky day to secure this name!", "Create", "Cancel");
     return 1;
 }
 
-stock getPlayerName(playerid) {
+// ------ Commands
+CMD:help(playerid, params[]) {
+	SendGlobalMessage("I love turtles");
+	SendErrorMessage(playerid, "This is not done yet, sorry");
+	return 1;
+}
+
+// ------ Send Messages
+stock SendErrorMessage(playerid, msg[]) {
+	return SendClientMessage(playerid, COLOR_RED, msg);
+}
+
+stock SendInfoMessage(playerid, msg[]) {
+	return SendClientMessage(playerid, COLOR_BLUE, msg);
+}
+
+stock SendGlobalMessage(msg[]) {
+	return SendClientMessageToAll(COLOR_ORANGE, msg);
+}
+
+// ------ Player
+getPlayerName(playerid) {
     new
        szName[MAX_PLAYER_NAME];
 
@@ -333,12 +387,15 @@ stock getPlayerName(playerid) {
     return szName;
 }
 
-stock DatabaseStructure() {
+// ------ MySQL Related
+DatabaseStructure() {
     mysql_query_file(zSQL, "database.sql");
     return 1;
 }
 
-stock clearCache(playerid) {
+clearCache(playerid) {
     cache_delete(Player[playerid][Cache]);
     Player[playerid][Cache] = MYSQL_INVALID_CACHE;
+    return 1;
 }
+
