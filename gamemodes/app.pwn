@@ -3,12 +3,13 @@
 #include <zcmd>
 
 /* -- TABLE OF ID's --
- 1-25       = Account Dialogs
- 1001-2000  = Dunnos
+ 0          = Default MSGBOX
+ 1-10       = Account Dialogs
+ 10-25      = ACP
 */
 
 /* Server Information */
-#define    SERVER_NAME      "Furious Freeroam"
+#define    SERVER_NAME      "Quickstart Freeroam"
 #define    SERVER_IP        "127.0.0.1:7777"
 #define    SERVER_GAMEMODE  "CameronCT"
 #define    SERVER_MAP       "CTCameron"
@@ -33,6 +34,13 @@
 #define    MYSQL_DB       "samp"
 
 /* Command Permissions */
+#define    ACP_REPORTS       1 // Views reports
+#define    ACP_USER_SPEC     1 // Specs Player
+#define    ACP_USER_TELE     1 // Teleports Players (A to U;vice-versa)
+#define    ACP_USER_KICK     2 // Kicks players
+#define    ACP_USER_BAN      3 // Banning players
+#define    ACP_USER_UNBAN    3 // Unbanning players
+#define    ACP_ANTICHEAT     4 // Evade Anticheat
 
 /* Colors RGBA */
 #define     COLOR_GREY      0xAFAFAFAA
@@ -58,6 +66,8 @@
 #define     DIALOG_REGISTER    2
 #define     DIALOG_EMAIL       3
 #define     DIALOG_SECURITY    4
+
+#define     DIALOG_ACP         10
 
 /* Variables */
 new
@@ -143,9 +153,9 @@ public OnGameModeExit() {
 }
 
 public OnPlayerRequestClass(playerid, classid) {
-	/* Clear Chat */
-	_ClearChat(playerid);
-	
+    /* Clear Chat */
+    _ClearChat(playerid);
+
     /* Scenery */
     SetPlayerPos(playerid, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z);
     SetPlayerCameraPos(playerid, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z);
@@ -176,7 +186,7 @@ public OnPlayerConnect(playerid) {
     RemoveBuildingForPlayer(playerid, 1302, 0.0, 0.0, 0.0, 6000.0);
     RemoveBuildingForPlayer(playerid, 1209, 0.0, 0.0, 0.0, 6000.0);
     RemoveBuildingForPlayer(playerid, 955, 0.0, 0.0, 0.0, 6000.0);
-	RemoveBuildingForPlayer(playerid, 956, 0.0, 0.0, 0.0, 6000.0);
+    RemoveBuildingForPlayer(playerid, 956, 0.0, 0.0, 0.0, 6000.0);
     RemoveBuildingForPlayer(playerid, 1775, 0.0, 0.0, 0.0, 6000.0);
     RemoveBuildingForPlayer(playerid, 1776, 0.0, 0.0, 0.0, 6000.0);
     RemoveBuildingForPlayer(playerid, 1977, 0.0, 0.0, 0.0, 6000.0);
@@ -203,8 +213,7 @@ public OnPlayerSpawn(playerid) {
 }
 
 public OnPlayerDeath(playerid, killerid, reason) {
-    if (killerid == INVALID_PLAYER_ID) return 0;
-    if (Player[killerid][Logged] == false) return 0;
+    if (killerid == INVALID_PLAYER_ID || Player[killerid][Logged] == false) return 0;
     
     Player[killerid][Kills]++;
     Player[playerid][Deaths]++;
@@ -350,8 +359,13 @@ public OnVehicleStreamOut(vehicleid, forplayerid)
     return 1;
 }
 
-public OnPlayerClickPlayer(playerid, clickedplayerid, source)
-{
+public OnPlayerClickPlayer(playerid, clickedplayerid, source) {
+	if (clickedplayerid == INVALID_PLAYER_ID || Player[clickedplayerid][Logged] == false || playerid == clickedplayerid) return 0;
+    
+    if (Player[playerid][Admin] >= 1) {
+		format(zString, sizeof(zString), "%s (%d)", getPlayerName(clickedplayerid), clickedplayerid);
+	    ShowPlayerDialog(playerid, DIALOG_ACP, DIALOG_STYLE_LIST, zString, "Statistics\nSpectate\nTeleport to You\nTeleport to Them\nKick\nBan", "Select", "Close");
+	}
     return 1;
 }
 
@@ -473,9 +487,9 @@ CMD:achealthsafe(playerid, params[]) {
 }
 
 CMD:fakedeath(playerid, params[]) {
-	Player[playerid][Kills]+=5;
-	Player[playerid][Deaths]++;
-	SendClientMessage(playerid, -1, "Fake kills and deaths added?");
+    Player[playerid][Kills]+=5;
+    Player[playerid][Deaths]++;
+    SendClientMessage(playerid, -1, "Fake kills and deaths added?");
 }
 
 // ------ Send Messages
@@ -501,11 +515,11 @@ getPlayerName(playerid) {
 }
 
 getPlayerIP(playerid) {
-	new
-	   szIP[16];
-	   
-	GetPlayerIp(playerid, szIP, sizeof(szIP));
-	return szIP;
+    new
+       szIP[16];
+
+    GetPlayerIp(playerid, szIP, sizeof(szIP));
+    return szIP;
 }
 
 // ------ MySQL Related
@@ -525,27 +539,27 @@ public OnConnectCheck(playerid, race) {
     if (race != zSQLRace[playerid])
         return Kick(playerid);
 
-	if (cache_num_rows() == 1) {
-		new
-			Datetime[64],
-			Reason[255];
-			
-		cache_get_value_name(0, "b_reason", Reason, 255);
-		cache_get_value_name(0, "b_datetime", Datetime, 255);
+    if (cache_num_rows() == 1) {
+        new
+            Datetime[64],
+            Reason[255];
 
-		/* Ban stuff here */
-		format(zStringXL, sizeof(zStringXL), ""HEX_WHITE"You have been banned from the server for violating one or more of our rules.\n\n");
-		format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"Reason:"HEX_WHITE" %s\n", zStringXL, Reason);
-		format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"When:"HEX_WHITE" %s\n", zStringXL, Datetime);
-		format(zStringXL, sizeof(zStringXL), "%s\n"HEX_WHITE"If you feel that you have been wrongfully banned, please go to "SERVER_WEBSITE".", zStringXL);
+        cache_get_value_name(0, "b_reason", Reason, 255);
+        cache_get_value_name(0, "b_datetime", Datetime, 255);
+
+        /* Ban stuff here */
+        format(zStringXL, sizeof(zStringXL), ""HEX_WHITE"You have been banned from the server for violating one or more of our rules.\n\n");
+        format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"Reason:"HEX_WHITE" %s\n", zStringXL, Reason);
+        format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"When:"HEX_WHITE" %s\n", zStringXL, Datetime);
+        format(zStringXL, sizeof(zStringXL), "%s\n"HEX_WHITE"If you feel that you have been wrongfully banned, please go to "SERVER_WEBSITE".", zStringXL);
         ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, "You are banned from this server!", zStringXL, "X", "");
         SetTimerEx("_KickPlayer", 500, false, "d", playerid);
-	} else {
+    } else {
         Player[playerid][Name] = getPlayerName(playerid);
         mysql_format(zSQL, zQueryL, sizeof(zQueryL), "SELECT a_id, a_password FROM accounts WHERE a_name = '%e' LIMIT 1", Player[playerid][Name]);
         mysql_tquery(zSQL, zQueryL, "OnPlayerCheck", "d", playerid);
-	}
-	return 1;
+    }
+    return 1;
 }
 public OnPlayerCheck(playerid) {
     if (cache_num_rows() == 1) {
@@ -570,7 +584,7 @@ public OnPlayerRegister(playerid) {
 
 public OnPlayerLogin(playerid) {
     Player[playerid][Cache] = cache_save();
-	FetchPlayerData(playerid);
+    FetchPlayerData(playerid);
     Player[playerid][Logged] = true;
     
     SetSpawnInfo(playerid, NO_TEAM, 0, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z, SPAWN_POS_A, 0, 0, 0, 0, 0, 0);
@@ -613,33 +627,45 @@ SavePlayerData(playerid) {
 
 // ------ Anticheat (http://forum.sa-mp.com/showthread.php?t=186988)
 public OnAnticheatCheck(playerid) {
-    new
-       Float:zHealth,
-       Float:zArmour;
+    if (Player[playerid][Admin] < ACP_ANTICHEAT) {
+        new
+           Float:zHealth,
+           Float:zArmour;
 
-    GetPlayerHealth(playerid, zHealth);
-    GetPlayerArmour(playerid, zArmour);
+        GetPlayerHealth(playerid, zHealth);
+        GetPlayerArmour(playerid, zArmour);
 
-    if (GetPlayerMoney(playerid) > Player[playerid][Money]) {
-        format(zString, sizeof(zString), "Money Cheating (%d - %d)", GetPlayerMoney(playerid), Player[playerid][Money]);
-        BanPlayer(playerid, "Anticheat", zString);
-	}
+		/* debug
+        if (GetPlayerMoney(playerid) > Player[playerid][Money]) {
+            format(zString, sizeof(zString), "Money Cheating (%d - %d)", GetPlayerMoney(playerid), Player[playerid][Money]);
+            BanPlayer(playerid, "Anticheat", zString);
+        }
+        if (GetPlayerScore(playerid) > Player[playerid][Score]) {
+            format(zString, sizeof(zString), "Score Cheating (%d - %d)", GetPlayerScore(playerid), Player[playerid][Score]);
+            BanPlayer(playerid, "Anticheat", zString);
+        }
+        if (floatround(zHealth, floatround_round) > floatround(Player[playerid][Health], floatround_round)) {
+            format(zString, sizeof(zString), "Health Cheating (%.1f - %.1f)", zHealth, Player[playerid][Health]);
+            BanPlayer(playerid, "Anticheat", zString);
+        }
+        if (floatround(zArmour, floatround_round) > floatround(Player[playerid][Armour], floatround_round)) {
+            format(zString, sizeof(zString), "Armour Cheating (%.1f - %.1f)", zArmour, Player[playerid][Armour]);
+            BanPlayer(playerid, "Anticheat", zString);
+        }
+        */
         
-    if (GetPlayerScore(playerid) > Player[playerid][Score]) {
-        format(zString, sizeof(zString), "Score Cheating (%d - %d)", GetPlayerScore(playerid), Player[playerid][Score]);
-        BanPlayer(playerid, "Anticheat", zString);
-	}
-        
-    if (floatround(zHealth, floatround_round) > floatround(Player[playerid][Health], floatround_round)) {
-        format(zString, sizeof(zString), "Health Cheating (%.1f - %.1f)", zHealth, Player[playerid][Health]);
-        BanPlayer(playerid, "Anticheat", zString);
-	}
-        
-    if (floatround(zArmour, floatround_round) > floatround(Player[playerid][Armour], floatround_round)) {
-        format(zString, sizeof(zString), "Armour Cheating (%.1f - %.1f)", zArmour, Player[playerid][Armour]);
-        BanPlayer(playerid, "Anticheat", zString);
-	}
-        
+        if (GetPlayerMoney(playerid) > Player[playerid][Money])
+            BanPlayer(playerid, "Anticheat", "Money Cheating");
+
+        if (GetPlayerScore(playerid) > Player[playerid][Score])
+            BanPlayer(playerid, "Anticheat", "Score Cheating");
+
+        if (floatround(zHealth, floatround_round) > floatround(Player[playerid][Health], floatround_round))
+            BanPlayer(playerid, "Anticheat", "Health Cheating");
+
+        if (floatround(zArmour, floatround_round) > floatround(Player[playerid][Armour], floatround_round))
+            BanPlayer(playerid, "Anticheat", "Armour Cheating");
+    }
     return 1;
 }
 
@@ -697,14 +723,14 @@ public _KickPlayer(playerid) {
 // ------ Clear Chat
 forward _ClearChat(playerid);
 public _ClearChat(playerid) {
-	for(new i = 0; i < 50; i++)
-	    SendClientMessage(playerid, -1, " ");
-	return 1;
+    for(new i = 0; i < 50; i++)
+        SendClientMessage(playerid, -1, " ");
+    return 1;
 }
 
 forward _ClearChatAll();
 public _ClearChatAll() {
-	for(new i = 0; i < 50; i++)
-	    SendClientMessageToAll(-1, " ");
-	return 1;
+    for(new i = 0; i < 50; i++)
+        SendClientMessageToAll(-1, " ");
+    return 1;
 }
