@@ -396,10 +396,18 @@ CMD:help(playerid, params[]) {
 }
 
 CMD:stats(playerid, params[]) {
-   format(zStringXL, sizeof(zStringXL), ""HEX_YELLOW"ID:"HEX_WHITE" %d\n"HEX_YELLOW"Name:"HEX_WHITE" %s\n"HEX_YELLOW"Admin:"HEX_WHITE" %d\n"HEX_YELLOW"Kills:"HEX_WHITE" %d\n"HEX_YELLOW"Deaths:"HEX_WHITE" %d\n"HEX_YELLOW"Registered:"HEX_WHITE" %s\n"HEX_YELLOW"Logged:"HEX_WHITE" %d\n", Player[playerid][ID], Player[playerid][Name], Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Registered], Player[playerid][Logged]);
+   format(zStringXL, sizeof(zStringXL), ""HEX_YELLOW"ID:"HEX_WHITE" %d\n", Player[playerid][ID]);
+   format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"Name:"HEX_WHITE" %s\n", zStringXL, Player[playerid][Name]);
+   format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"Admin:"HEX_WHITE" %d\n", zStringXL, Player[playerid][Admin]);
+   format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"IP:"HEX_WHITE" %s\n", zStringXL, Player[playerid][LastIP]);
+   format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"Kills:"HEX_WHITE" %d\n", zStringXL, Player[playerid][Kills]);
+   format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"Deaths:"HEX_WHITE" %d\n", zStringXL, Player[playerid][Deaths]);
+   format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"Registered:"HEX_WHITE" %s\n", zStringXL, Player[playerid][Registered]);
+   format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"Logged:"HEX_WHITE" %d\n", zStringXL, Player[playerid][Logged]);
    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" Statistics", zStringXL, "Okay", "");
    return 1;
 }
+
 
 CMD:anticheat(playerid, params[]) {
     if (Player[playerid][Admin] <= 0) return SendErrorMessage(playerid, "You are not authorized to view this command");
@@ -444,6 +452,7 @@ CMD:acmoney(playerid, params[]) {
 
 CMD:acmoneysafe(playerid, params[]) {
     zGivePlayerMoney(playerid, 1000);
+    zSetPlayerScore(playerid, 25);
     return 1;
 }
 
@@ -455,6 +464,12 @@ CMD:achealth(playerid, params[]) {
 CMD:achealthsafe(playerid, params[]) {
     zSetPlayerHealth(playerid, 50.0);
     return 1;
+}
+
+CMD:fakedeath(playerid, params[]) {
+	Player[playerid][Kills]+=5;
+	Player[playerid][Deaths]++;
+	SendClientMessage(playerid, -1, "Fake kills and deaths added?");
 }
 
 // ------ Send Messages
@@ -562,14 +577,13 @@ FetchPlayerData(playerid) {
 SavePlayerData(playerid) {
     if (Player[playerid][Logged] == false) return 0;
     
-    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "UPDATE accounts SET a_lastip = %s, a_admin = %d, a_kills = %d, a_deaths = %d, a_money = %d, a_score = %d WHERE a_id = %d", getPlayerIP(playerid), Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Money], Player[playerid][Score], Player[playerid][ID]);
+    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "UPDATE accounts SET a_lastip = '%e', a_admin = %d, a_kills = %d, a_deaths = %d, a_money = %d, a_score = %d WHERE a_id = %d", getPlayerIP(playerid), Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Money], Player[playerid][Score], Player[playerid][ID]);
     mysql_tquery(zSQL, zQueryL);
     return 1;
 }
 
 // ------ Anticheat (http://forum.sa-mp.com/showthread.php?t=186988)
 public OnAnticheatCheck(playerid) {
-    // ------ Anticheat
     new
        Float:zHealth,
        Float:zArmour;
@@ -620,7 +634,7 @@ zSetPlayerArmour(playerid, Float:armor) {
 }
 
 // ------ Kick / Ban
-BanPlayer(playerid, user[] = "Server", reason[]) {
+BanPlayer(playerid, user[], reason[]) {
     format(zStringXL, sizeof(zStringXL), ""HEX_WHITE"You have been banned from the server for violating one or more of our rules.\n\n"HEX_YELLOW"User:"HEX_WHITE" %s\n"HEX_YELLOW"Reason:"HEX_WHITE" %s\n\nIf you feel that you have been wrongfully banned, please go to "SERVER_WEBSITE".", user, reason);
     ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, "You have been removed from the server!", zStringXL, "X", "");
     SetTimerEx("_BanPlayer", 500, false, "ds", playerid, reason);
