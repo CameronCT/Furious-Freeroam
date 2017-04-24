@@ -363,6 +363,7 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source) {
 	if (clickedplayerid == INVALID_PLAYER_ID || Player[clickedplayerid][Logged] == false || playerid == clickedplayerid) return 0;
     
     if (Player[playerid][Admin] >= 1) {
+        SetPVarInt(playerid, "ACP_SELECTED", clickedplayerid);
 		format(zString, sizeof(zString), "%s (%d)", getPlayerName(clickedplayerid), clickedplayerid);
 	    ShowPlayerDialog(playerid, DIALOG_ACP, DIALOG_STYLE_LIST, zString, "Statistics\nSpectate\nTeleport to You\nTeleport to Them\nKick\nBan", "Select", "Close");
 	}
