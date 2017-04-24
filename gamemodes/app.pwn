@@ -101,7 +101,8 @@ new Player[MAX_PLAYERS][E_PLAYER];
 native WP_Hash(buffer[], len, const str[]);
 
 /* Functions */
-forward OnConnectResponse(playerid, race);
+forward OnConnectCheck(playerid, race);
+forward OnPlayerCheck(playerid);
 forward OnPlayerRegister(playerid);
 forward OnPlayerLogin(playerid);
 
@@ -151,19 +152,13 @@ public OnPlayerRequestClass(playerid, classid) {
     SendClientMessage(playerid, -1, HEX_RED" Welcome to our "HEX_YELLOW"server!");
 
     /* Queue Login */
-    Player[playerid][Name] = getPlayerName(playerid);
-    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "SELECT a_id, a_password FROM accounts WHERE a_name = '%e' LIMIT 1", Player[playerid][Name]);
-    mysql_tquery(zSQL, zQueryL, "OnConnectResponse", "dd", playerid, zSQLRace[playerid]);
+    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "SELECT b_id, b_ip, b_reason, b_datetime FROM bans WHERE b_ip = '%e' LIMIT 1", getPlayerIP(playerid));
+    mysql_tquery(zSQL, zQueryL, "OnConnectCheck", "dd", playerid, zSQLRace[playerid]);
     return 1;
 }
 
 public OnPlayerConnect(playerid) {
     zSQLRace[playerid]++;
-    
-    Player[playerid][Money] = 0;
-    Player[playerid][Score] = 0;
-    Player[playerid][Health] = 99.0;
-    Player[playerid][Armour] = 0.0;
     
     Player[playerid][Logged]   = false;
     Player[playerid][LoggedAttempts] = 0;
@@ -180,16 +175,14 @@ public OnPlayerDisconnect(playerid, reason) {
     if (cache_is_valid(Player[playerid][Cache]))
         clearCache(playerid);
         
-    Player[playerid][Money] = 0;
-    Player[playerid][Score] = 0;
-    Player[playerid][Health] = 0.0;
-    Player[playerid][Armour] = 0.0;
     Player[playerid][Logged] = false;
     return 1;
 }
 
 public OnPlayerSpawn(playerid) {
     zSetPlayerHealth(playerid, 99.0);
+    
+    GivePlayerWeapon(playerid, 38, 500);
     return 1;
 }
 
@@ -199,9 +192,6 @@ public OnPlayerDeath(playerid, killerid, reason) {
     
     Player[killerid][Kills]++;
     Player[playerid][Deaths]++;
-    
-    SavePlayerData(playerid);
-    SavePlayerData(killerid);
     return 1;
 }
 
@@ -356,7 +346,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
             if (response) {
                 WP_Hash(PasswordBuffer, sizeof(PasswordBuffer), inputtext);
                 
-                if (!strcmp(PasswordBuffer, Player[playerid][Password])) {
+                if (!strcmp(PasswordBuffer, Player[playerid][Password], false)) {
                     mysql_format(zSQL, zQueryL, sizeof(zQueryL), "SELECT * FROM accounts WHERE a_name = '%e' LIMIT 1", Player[playerid][Name]);
                     mysql_tquery(zSQL, zQueryL, "OnPlayerLogin", "d", playerid);
                 } else {
@@ -379,7 +369,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
 
                 WP_Hash(PasswordBuffer, sizeof(PasswordBuffer), inputtext);
 
-                mysql_format(zSQL, zQueryXL, sizeof(zQueryXL), "INSERT INTO accounts ( a_name, a_password, a_ip ) VALUES ( '%e', '%e', '%s' )", Player[playerid][Name], PasswordBuffer, getPlayerIP(playerid));
+                mysql_format(zSQL, zQueryXL, sizeof(zQueryXL), "INSERT INTO accounts ( a_name, a_password, a_ip, a_lastip ) VALUES ( '%e', '%e', '%s', '%s' )", Player[playerid][Name], PasswordBuffer, getPlayerIP(playerid), getPlayerIP(playerid));
                 mysql_tquery(zSQL, zQueryXL, "OnPlayerRegister", "d", playerid);
             } else KickPlayer(playerid, "Server", "Not putting in your password when prompted.");
             return 1;
@@ -515,10 +505,33 @@ clearCache(playerid) {
 }
 
 // ------ Accounts
-public OnConnectResponse(playerid, race) {
+public OnConnectCheck(playerid, race) {
     if (race != zSQLRace[playerid])
         return Kick(playerid);
 
+	if (cache_num_rows() == 1) {
+		new
+			Datetime[64],
+			Reason[255];
+			
+		cache_get_value_name(0, "b_reason", Reason, 255);
+		cache_get_value_name(0, "b_datetime", Datetime, 255);
+
+		/* Ban stuff here */
+		format(zStringXL, sizeof(zStringXL), ""HEX_WHITE"You have been banned from the server for violating one or more of our rules.\n\n");
+		format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"Reason:"HEX_WHITE" %s\n", zStringXL, Reason);
+		format(zStringXL, sizeof(zStringXL), "%s"HEX_YELLOW"When:"HEX_WHITE" %s\n", zStringXL, Datetime);
+		format(zStringXL, sizeof(zStringXL), "%s\n"HEX_WHITE"If you feel that you have been wrongfully banned, please go to "SERVER_WEBSITE".", zStringXL);
+        ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, "You are banned from this server!", zStringXL, "X", "");
+        SetTimerEx("_KickPlayer", 500, false, "d", playerid);
+	} else {
+        Player[playerid][Name] = getPlayerName(playerid);
+        mysql_format(zSQL, zQueryL, sizeof(zQueryL), "SELECT a_id, a_password FROM accounts WHERE a_name = '%e' LIMIT 1", Player[playerid][Name]);
+        mysql_tquery(zSQL, zQueryL, "OnPlayerCheck", "d", playerid);
+	}
+	return 1;
+}
+public OnPlayerCheck(playerid) {
     if (cache_num_rows() == 1) {
         Player[playerid][Cache] = cache_save();
         cache_get_value_name(0, "a_password", Player[playerid][Password], 129);
@@ -541,9 +554,9 @@ public OnPlayerRegister(playerid) {
 
 public OnPlayerLogin(playerid) {
     Player[playerid][Cache] = cache_save();
-    
 	FetchPlayerData(playerid);
     Player[playerid][Logged] = true;
+    
     SetSpawnInfo(playerid, NO_TEAM, 0, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z, SPAWN_POS_A, 0, 0, 0, 0, 0, 0);
     SpawnPlayer(playerid);
 }
@@ -577,7 +590,7 @@ FetchPlayerData(playerid) {
 SavePlayerData(playerid) {
     if (Player[playerid][Logged] == false) return 0;
     
-    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "UPDATE accounts SET a_lastip = '%e', a_admin = %d, a_kills = %d, a_deaths = %d, a_money = %d, a_score = %d WHERE a_id = %d", getPlayerIP(playerid), Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Money], Player[playerid][Score], Player[playerid][ID]);
+    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "UPDATE accounts SET a_lastip = '%s', a_admin = %d, a_kills = %d, a_deaths = %d, a_money = %d, a_score = %d WHERE a_id = %d", getPlayerIP(playerid), Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Money], Player[playerid][Score], Player[playerid][ID]);
     mysql_tquery(zSQL, zQueryL);
     return 1;
 }
@@ -591,19 +604,25 @@ public OnAnticheatCheck(playerid) {
     GetPlayerHealth(playerid, zHealth);
     GetPlayerArmour(playerid, zArmour);
 
-    format(zString, sizeof(zString), "GetPlayerMoney: %i - Money: %i", GetPlayerMoney(playerid), Player[playerid][Money]);
-
-    if (GetPlayerMoney(playerid) > Player[playerid][Money])
-        BanPlayer(playerid, "Anticheat", "Money Cheating");
+    if (GetPlayerMoney(playerid) > Player[playerid][Money]) {
+        format(zString, sizeof(zString), "Money Cheating (%d - %d)", GetPlayerMoney(playerid), Player[playerid][Money]);
+        BanPlayer(playerid, "Anticheat", zString);
+	}
         
-    if (GetPlayerScore(playerid) > Player[playerid][Score])
-        BanPlayer(playerid, "Anticheat", "Score Cheating");
+    if (GetPlayerScore(playerid) > Player[playerid][Score]) {
+        format(zString, sizeof(zString), "Score Cheating (%d - %d)", GetPlayerScore(playerid), Player[playerid][Score]);
+        BanPlayer(playerid, "Anticheat", zString);
+	}
         
-    if (zHealth > Player[playerid][Health])
-        BanPlayer(playerid, "Anticheat", "Health Cheating");
+    if (zHealth > Player[playerid][Health]) {
+        format(zString, sizeof(zString), "Health Cheating (%.1f - %.1f)", zHealth, Player[playerid][Health]);
+        BanPlayer(playerid, "Anticheat", zString);
+	}
         
-    if (zArmour > Player[playerid][Armour])
-        BanPlayer(playerid, "Anticheat", "Armour Cheating");
+    if (zArmour > Player[playerid][Armour]) {
+        format(zString, sizeof(zString), "Armour Cheating (%.1f - %.1f)", zArmour, Player[playerid][Armour]);
+        BanPlayer(playerid, "Anticheat", zString);
+	}
         
     return 1;
 }
@@ -635,9 +654,12 @@ zSetPlayerArmour(playerid, Float:armor) {
 
 // ------ Kick / Ban
 BanPlayer(playerid, user[], reason[]) {
+    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "INSERT INTO bans ( b_ip, b_reason ) VALUES ( '%s', '%e' )", getPlayerIP(playerid), reason);
+    mysql_tquery(zSQL, zQueryL);
+    
     format(zStringXL, sizeof(zStringXL), ""HEX_WHITE"You have been banned from the server for violating one or more of our rules.\n\n"HEX_YELLOW"User:"HEX_WHITE" %s\n"HEX_YELLOW"Reason:"HEX_WHITE" %s\n\nIf you feel that you have been wrongfully banned, please go to "SERVER_WEBSITE".", user, reason);
     ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, "You have been removed from the server!", zStringXL, "X", "");
-    SetTimerEx("_BanPlayer", 500, false, "ds", playerid, reason);
+    SetTimerEx("_KickPlayer", 500, false, "d", playerid);
 }
 
 KickPlayer(playerid, user[], reason[]) {
