@@ -66,10 +66,10 @@ new
     zSQLRace[MAX_PLAYERS],
     zQuery[128],
     zQueryL[192],
-    //zQueryXL[256],
-    zString[128];
-    //zStringL[192],
-    //zStringXL[256]
+    zQueryXL[256],
+    zString[128],
+    zStringL[192],
+    zStringXL[256];
 
 /* Player Data */
 enum E_PLAYER {
@@ -77,6 +77,8 @@ enum E_PLAYER {
     Name[MAX_PLAYER_NAME],
     Email[192],
     Password[PASSWORD_BUFFER],
+    IP[16],
+    LastIP[16],
     Admin,
     Cache: Cache,
     bool:Logged,
@@ -101,6 +103,7 @@ native WP_Hash(buffer[], len, const str[]);
 /* Functions */
 forward OnConnectResponse(playerid, race);
 forward OnPlayerRegister(playerid);
+forward OnPlayerLogin(playerid);
 
 forward FetchPlayerData(playerid);
 forward UpdatePlayerData(playerid);
@@ -111,7 +114,7 @@ forward OnAnticheatCheck(playerid);
 main() { }
 public OnGameModeInit() {
     /* Database -> Initiate */
-    mysql_log(ALL);
+    //mysql_log(ALL);
     zSQL = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB);
     if(mysql_errno() == 0) {
         /* Create Structure */
@@ -149,7 +152,7 @@ public OnPlayerRequestClass(playerid, classid) {
 
     /* Queue Login */
     Player[playerid][Name] = getPlayerName(playerid);
-    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "SELECT a_id, a_name, a_password, a_email, a_admin, a_money, a_score, a_kills, a_deaths, a_datetime FROM accounts WHERE a_name = '%e' LIMIT 1", Player[playerid][Name]);
+    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "SELECT a_id, a_password FROM accounts WHERE a_name = '%e' LIMIT 1", Player[playerid][Name]);
     mysql_tquery(zSQL, zQueryL, "OnConnectResponse", "dd", playerid, zSQLRace[playerid]);
     return 1;
 }
@@ -196,6 +199,9 @@ public OnPlayerDeath(playerid, killerid, reason) {
     
     Player[killerid][Kills]++;
     Player[playerid][Deaths]++;
+    
+    SavePlayerData(playerid);
+    SavePlayerData(killerid);
     return 1;
 }
 
@@ -351,12 +357,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
                 WP_Hash(PasswordBuffer, sizeof(PasswordBuffer), inputtext);
                 
                 if (!strcmp(PasswordBuffer, Player[playerid][Password])) {
-                    FetchPlayerData(playerid);
-                    
-                    Player[playerid][Logged] = true;
-                    
-                    SetSpawnInfo(playerid, NO_TEAM, 0, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z, SPAWN_POS_A, 0, 0, 0, 0, 0, 0);
-                    SpawnPlayer(playerid);
+                    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "SELECT * FROM accounts WHERE a_name = '%e' LIMIT 1", Player[playerid][Name]);
+                    mysql_tquery(zSQL, zQueryL, "OnPlayerLogin", "d", playerid);
                 } else {
                     Player[playerid][LoggedAttempts]++;
                     if (Player[playerid][LoggedAttempts] >= MAX_ATTEMPTS+1) {
@@ -377,8 +379,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]) {
 
                 WP_Hash(PasswordBuffer, sizeof(PasswordBuffer), inputtext);
 
-                mysql_format(zSQL, zQuery, sizeof(zQuery), "INSERT INTO accounts ( a_name, a_password ) VALUES ( '%e', '%e' )", Player[playerid][Name], PasswordBuffer);
-                mysql_tquery(zSQL, zQuery, "OnPlayerRegister", "d", playerid);
+                mysql_format(zSQL, zQueryXL, sizeof(zQueryXL), "INSERT INTO accounts ( a_name, a_password, a_ip ) VALUES ( '%e', '%e', '%s' )", Player[playerid][Name], PasswordBuffer, getPlayerIP(playerid));
+                mysql_tquery(zSQL, zQueryXL, "OnPlayerRegister", "d", playerid);
             } else KickPlayer(playerid, "Server", "Not putting in your password when prompted.");
             return 1;
         }
@@ -394,8 +396,8 @@ CMD:help(playerid, params[]) {
 }
 
 CMD:stats(playerid, params[]) {
-   format(zString, sizeof(zString), ""HEX_YELLOW"ID:"HEX_WHITE" %d\n"HEX_YELLOW"Name:"HEX_WHITE" %s\n"HEX_YELLOW"Admin:"HEX_WHITE" %d\n"HEX_YELLOW"Kills:"HEX_WHITE" %d\n"HEX_YELLOW"Deaths:"HEX_WHITE" %d\n"HEX_YELLOW"Registered:"HEX_WHITE" %s\n"HEX_YELLOW"Logged:"HEX_WHITE" %d\n", Player[playerid][ID], Player[playerid][Name], Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Registered], Player[playerid][Logged]);
-   ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" Statistics", zString, "Okay", "");
+   format(zStringXL, sizeof(zStringXL), ""HEX_YELLOW"ID:"HEX_WHITE" %d\n"HEX_YELLOW"Name:"HEX_WHITE" %s\n"HEX_YELLOW"Admin:"HEX_WHITE" %d\n"HEX_YELLOW"Kills:"HEX_WHITE" %d\n"HEX_YELLOW"Deaths:"HEX_WHITE" %d\n"HEX_YELLOW"Registered:"HEX_WHITE" %s\n"HEX_YELLOW"Logged:"HEX_WHITE" %d\n", Player[playerid][ID], Player[playerid][Name], Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Registered], Player[playerid][Logged]);
+   ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" Statistics", zStringXL, "Okay", "");
    return 1;
 }
 
@@ -409,7 +411,7 @@ CMD:anticheat(playerid, params[]) {
     GetPlayerHealth(playerid, zHealth);
     GetPlayerArmour(playerid, zArmour);
 
-    format(zString, sizeof(zString),
+    format(zStringXL, sizeof(zStringXL),
         ""HEX_YELLOW"Money:"HEX_WHITE" $%d ($%d)\n"HEX_YELLOW"Score:"HEX_WHITE" %d (%d)\n"HEX_YELLOW"Health:"HEX_WHITE" %f (%f)\n"HEX_YELLOW"Armour:"HEX_WHITE" %f (%f)\n",
         GetPlayerMoney(playerid),
         Player[playerid][Money],
@@ -420,7 +422,7 @@ CMD:anticheat(playerid, params[]) {
         zArmour,
         Player[playerid][Armour]
     );
-    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" Anticheat Debug", zString, "X", "");
+    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" Anticheat Debug", zStringXL, "X", "");
     return 1;
 }
 
@@ -477,6 +479,14 @@ getPlayerName(playerid) {
     return szName;
 }
 
+getPlayerIP(playerid) {
+	new
+	   szIP[16];
+	   
+	GetPlayerIp(playerid, szIP, sizeof(szIP));
+	return szIP;
+}
+
 // ------ MySQL Related
 DatabaseStructure() {
     mysql_query_file(zSQL, "database.sql");
@@ -495,10 +505,8 @@ public OnConnectResponse(playerid, race) {
         return Kick(playerid);
 
     if (cache_num_rows() == 1) {
-        cache_get_value_name(0, "a_name", Player[playerid][Name], MAX_PLAYER_NAME);
-        cache_get_value_name(0, "a_password", Player[playerid][Password], 129);
         Player[playerid][Cache] = cache_save();
-
+        cache_get_value_name(0, "a_password", Player[playerid][Password], 129);
         ShowPlayerDialog(playerid, DIALOG_LOGIN, DIALOG_STYLE_PASSWORD, "Login", "Your account exists in our database, please enter your password!", "Login", "Cancel");
     } else
         ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_PASSWORD, "Register", "It looks like you do not have an account, today is your lucky day to secure this name!", "Create", "Cancel");
@@ -516,11 +524,24 @@ public OnPlayerRegister(playerid) {
     return 1;
 }
 
+public OnPlayerLogin(playerid) {
+    Player[playerid][Cache] = cache_save();
+    
+	FetchPlayerData(playerid);
+    Player[playerid][Logged] = true;
+    SetSpawnInfo(playerid, NO_TEAM, 0, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z, SPAWN_POS_A, 0, 0, 0, 0, 0, 0);
+    SpawnPlayer(playerid);
+}
+
 FetchPlayerData(playerid) {
     cache_set_active(Player[playerid][Cache]);
 
     /* Data */
+    cache_get_value_name(0, "a_name", Player[playerid][Name], MAX_PLAYER_NAME);
+    cache_get_value_name(0, "a_password", Player[playerid][Password], 129);
     cache_get_value_name(0, "a_datetime", Player[playerid][Registered], 64);
+    cache_get_value_name(0, "a_ip", Player[playerid][IP], 16);
+    cache_get_value_name(0, "a_lastip", Player[playerid][LastIP], 16);
     cache_get_value_int(0, "a_id", Player[playerid][ID]);
     cache_get_value_int(0, "a_admin", Player[playerid][Admin]);
     cache_get_value_int(0, "a_kills", Player[playerid][Kills]);
@@ -541,7 +562,7 @@ FetchPlayerData(playerid) {
 SavePlayerData(playerid) {
     if (Player[playerid][Logged] == false) return 0;
     
-    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "UPDATE accounts SET a_admin = %d, a_kills = %d, a_deaths = %d, a_money = %d, a_score = %d WHERE a_id = %d", Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Money], Player[playerid][Score], Player[playerid][ID]);
+    mysql_format(zSQL, zQueryL, sizeof(zQueryL), "UPDATE accounts SET a_lastip = %s, a_admin = %d, a_kills = %d, a_deaths = %d, a_money = %d, a_score = %d WHERE a_id = %d", getPlayerIP(playerid), Player[playerid][Admin], Player[playerid][Kills], Player[playerid][Deaths], Player[playerid][Money], Player[playerid][Score], Player[playerid][ID]);
     mysql_tquery(zSQL, zQueryL);
     return 1;
 }
@@ -600,14 +621,14 @@ zSetPlayerArmour(playerid, Float:armor) {
 
 // ------ Kick / Ban
 BanPlayer(playerid, user[] = "Server", reason[]) {
-    format(zString, sizeof(zString), ""HEX_WHITE" You have been banned from the server for violating one or more of our rules.\n\n "HEX_YELLOW"User:"HEX_WHITE" %s\n"HEX_YELLOW"Reason:"HEX_WHITE" %s\n\nIf you feel that you have been wrongfully banned, please go to "SERVER_WEBSITE".", user, reason);
-    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, "You have been removed from the server!", zString, "X", "");
+    format(zStringXL, sizeof(zStringXL), ""HEX_WHITE"You have been banned from the server for violating one or more of our rules.\n\n"HEX_YELLOW"User:"HEX_WHITE" %s\n"HEX_YELLOW"Reason:"HEX_WHITE" %s\n\nIf you feel that you have been wrongfully banned, please go to "SERVER_WEBSITE".", user, reason);
+    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, "You have been removed from the server!", zStringXL, "X", "");
     SetTimerEx("_BanPlayer", 500, false, "ds", playerid, reason);
 }
 
 KickPlayer(playerid, user[], reason[]) {
-    format(zString, sizeof(zString), ""HEX_WHITE" You have been kicked from the server for violating one or more of our rules.\n\n "HEX_YELLOW"User:"HEX_WHITE" %s\n"HEX_YELLOW"Reason:"HEX_WHITE" %s\n\nYou may come back to the server anytime, but please think over why you were kicked to prevent further risk of a ban.", user, reason);
-    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" You have been removed from the server!", zString, "X", "");
+    format(zStringXL, sizeof(zStringXL), ""HEX_WHITE"You have been kicked from the server for violating one or more of our rules.\n\n"HEX_YELLOW"User:"HEX_WHITE" %s\n"HEX_YELLOW"Reason:"HEX_WHITE" %s\n\nYou may come back to the server anytime, but please think over why you were kicked to prevent further risk of a ban.", user, reason);
+    ShowPlayerDialog(playerid, DIALOG_INFO, DIALOG_STYLE_MSGBOX, ""HEX_YELLOW" You have been removed from the server!", zStringXL, "X", "");
     SetTimerEx("_KickPlayer", 500, false, "d", playerid);
 }
 
