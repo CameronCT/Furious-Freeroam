@@ -143,13 +143,19 @@ public OnGameModeExit() {
 }
 
 public OnPlayerRequestClass(playerid, classid) {
+	/* Clear Chat */
+	_ClearChat(playerid);
+	
     /* Scenery */
     SetPlayerPos(playerid, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z);
     SetPlayerCameraPos(playerid, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z);
     SetPlayerCameraLookAt(playerid, SPAWN_POS_X, SPAWN_POS_Y, SPAWN_POS_Z);
 
     /* Greetings */
-    SendClientMessage(playerid, -1, HEX_RED" Welcome to our "HEX_YELLOW"server!");
+    SendClientMessage(playerid, COLOR_YELLOW, "------");
+    SendClientMessage(playerid, COLOR_LIGHTBLUE, "Welcome to "SERVER_NAME" | Bienvenue à "SERVER_NAME);
+    SendClientMessage(playerid, COLOR_LIGHTBLUE, "Website: "SERVER_WEBSITE" - IP: "SERVER_IP);
+    SendClientMessage(playerid, COLOR_YELLOW, "------");
 
     /* Queue Login */
     mysql_format(zSQL, zQueryL, sizeof(zQueryL), "SELECT b_id, b_ip, b_reason, b_datetime FROM bans WHERE b_ip = '%e' LIMIT 1", getPlayerIP(playerid));
@@ -162,6 +168,18 @@ public OnPlayerConnect(playerid) {
     
     Player[playerid][Logged]   = false;
     Player[playerid][LoggedAttempts] = 0;
+    
+    /* Prevent Anticheat from Banning */
+    zSetPlayerHealth(playerid, 99.0);
+    
+    /* Removes Vending Machines - If user gets a hold of a Vending machine, it will trigger a false positive */
+    RemoveBuildingForPlayer(playerid, 1302, 0.0, 0.0, 0.0, 6000.0);
+    RemoveBuildingForPlayer(playerid, 1209, 0.0, 0.0, 0.0, 6000.0);
+    RemoveBuildingForPlayer(playerid, 955, 0.0, 0.0, 0.0, 6000.0);
+	RemoveBuildingForPlayer(playerid, 956, 0.0, 0.0, 0.0, 6000.0);
+    RemoveBuildingForPlayer(playerid, 1775, 0.0, 0.0, 0.0, 6000.0);
+    RemoveBuildingForPlayer(playerid, 1776, 0.0, 0.0, 0.0, 6000.0);
+    RemoveBuildingForPlayer(playerid, 1977, 0.0, 0.0, 0.0, 6000.0);
 
     SetTimerEx("OnAnticheatCheck", 1000, true, "d", playerid);
     return 1;
@@ -180,8 +198,6 @@ public OnPlayerDisconnect(playerid, reason) {
 }
 
 public OnPlayerSpawn(playerid) {
-    zSetPlayerHealth(playerid, 99.0);
-    
     GivePlayerWeapon(playerid, 38, 500);
     return 1;
 }
@@ -614,12 +630,12 @@ public OnAnticheatCheck(playerid) {
         BanPlayer(playerid, "Anticheat", zString);
 	}
         
-    if (zHealth > Player[playerid][Health]) {
+    if (floatround(zHealth, floatround_round) > floatround(Player[playerid][Health], floatround_round)) {
         format(zString, sizeof(zString), "Health Cheating (%.1f - %.1f)", zHealth, Player[playerid][Health]);
         BanPlayer(playerid, "Anticheat", zString);
 	}
         
-    if (zArmour > Player[playerid][Armour]) {
+    if (floatround(zArmour, floatround_round) > floatround(Player[playerid][Armour], floatround_round)) {
         format(zString, sizeof(zString), "Armour Cheating (%.1f - %.1f)", zArmour, Player[playerid][Armour]);
         BanPlayer(playerid, "Anticheat", zString);
 	}
@@ -678,3 +694,17 @@ public _KickPlayer(playerid) {
     Kick(playerid);
 }
 
+// ------ Clear Chat
+forward _ClearChat(playerid);
+public _ClearChat(playerid) {
+	for(new i = 0; i < 50; i++)
+	    SendClientMessage(playerid, -1, " ");
+	return 1;
+}
+
+forward _ClearChatAll();
+public _ClearChatAll() {
+	for(new i = 0; i < 50; i++)
+	    SendClientMessageToAll(-1, " ");
+	return 1;
+}
